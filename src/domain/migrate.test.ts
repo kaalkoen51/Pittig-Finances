@@ -10,6 +10,16 @@ describe('validate', () => {
     if (!r.ok) throw new Error(r.error);
   });
 
+  it('new data is English by default; Dutch on request', () => {
+    const en = emptyData();
+    expect(en.settings.language).toBe('en');
+    expect(en.categories.map((c) => c.name)).toContain('Ingredients');
+    const nl = emptyData('nl');
+    expect(nl.settings.language).toBe('nl');
+    expect(nl.categories.map((c) => c.name)).toContain('Ingrediënten');
+    expect(demoData('2026-03-31').settings.language).toBe('en');
+  });
+
   it('rejects non-integer cents', () => {
     const d = demoData('2026-03-31');
     d.expenses[0]!.amount = 12.5;

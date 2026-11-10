@@ -2,7 +2,7 @@
  * Close handshake helpers shared by preload.ts and main.ts (no `electron` imports → unit-testable).
  *
  * The renderer answers 'pittig:before-close' with 'pittig:close-ready' + CloseReadyPayload. When the
- * pending changes could not be written, main asks "Niet opgeslagen – toch sluiten?" instead of
+ * pending changes could not be written, main asks "Not saved – close anyway?" instead of
  * closing silently.
  */
 

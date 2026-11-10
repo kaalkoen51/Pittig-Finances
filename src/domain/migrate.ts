@@ -16,7 +16,7 @@ const DEFAULT_CATEGORY_NAMES: Record<Language, string[]> = {
 };
 const DEFAULT_CATEGORY_COLORS = ['#D9822B', '#8E6C4A', '#B05BC4', '#5B7BD5', '#2F9E8F', '#D4A72C', '#D2463A', '#8E8E93'];
 
-export function defaultCategories(lang: Language = 'nl'): Category[] {
+export function defaultCategories(lang: Language = 'en'): Category[] {
   return DEFAULT_CATEGORY_NAMES[lang].map((name, i) => ({
     id: newId(),
     name,
@@ -25,12 +25,12 @@ export function defaultCategories(lang: Language = 'nl'): Category[] {
   }));
 }
 
-export function defaultSettings(lang: Language = 'nl'): Settings {
+export function defaultSettings(lang: Language = 'en'): Settings {
   return { businessName: '', language: lang, firstRunDone: false };
 }
 
 /** A fresh dataset (first run): no records, default categories. */
-export function emptyData(lang: Language = 'nl'): AppData {
+export function emptyData(lang: Language = 'en'): AppData {
   return {
     version: CURRENT_VERSION,
     clients: [],

@@ -89,7 +89,7 @@ describe('own format round trip', () => {
     // Into an empty dataset → everything created once.
     const fresh = planEntityImport(emptyData(), sheets);
     expect(fresh.clients.map((c) => c.name).sort()).toEqual(data.clients.map((c) => c.name).sort());
-    expect(fresh.products.find((p) => p.name === 'Sambal Pittig')).toMatchObject({ unit: 'pot', defaultPrice: 650, archived: false });
+    expect(fresh.products.find((p) => p.name === 'Sambal Pittig')).toMatchObject({ unit: 'jar', defaultPrice: 650, archived: false });
     expect(fresh.created).toBe(data.clients.length + data.suppliers.length + data.products.length);
   });
 

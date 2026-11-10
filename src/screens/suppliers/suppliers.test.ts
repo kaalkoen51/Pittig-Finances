@@ -47,7 +47,7 @@ describe('supplier form', () => {
     expect(supplierFromForm(supplierForm(orig), orig)).toEqual(orig);
   });
   it('detects duplicate names', () => {
-    expect(isDuplicateName(d.suppliers, 'verpakking direct')).toBe(true);
-    expect(isDuplicateName(d.suppliers, 'Verpakking Direct', 'demo-s-jars')).toBe(false);
+    expect(isDuplicateName(d.suppliers, 'packaging direct')).toBe(true);
+    expect(isDuplicateName(d.suppliers, 'Packaging Direct', 'demo-s-jars')).toBe(false);
   });
 });

@@ -43,7 +43,7 @@ export function parseQuantity(s: string): number | null {
   return n > 0 ? n : null;
 }
 
-export function formatQuantity(n: number, lang: 'nl' | 'en' = 'nl'): string {
+export function formatQuantity(n: number, lang: 'nl' | 'en' = 'en'): string {
   const s = String(Math.round(n * 1000) / 1000);
   return lang === 'nl' ? s.replace('.', ',') : s;
 }
@@ -113,7 +113,7 @@ export function emptySaleForm(data: Pick<AppData, 'batches' | 'products' | 'clie
   };
 }
 
-export function saleToForm(sale: Sale, linked: Payment[], lang: 'nl' | 'en' = 'nl'): SaleFormState {
+export function saleToForm(sale: Sale, linked: Payment[], lang: 'nl' | 'en' = 'en'): SaleFormState {
   return {
     date: sale.date,
     ...(sale.clientId ? { clientId: sale.clientId } : {}),
@@ -234,6 +234,6 @@ export function canTogglePaid(existing: Sale | undefined, linked: Payment[], alr
 }
 
 /** Short "40× Sambal, 12× Habanero" summary. */
-export function itemsSummary(sale: Sale, productName: (id: Id) => string, lang: 'nl' | 'en' = 'nl'): string {
+export function itemsSummary(sale: Sale, productName: (id: Id) => string, lang: 'nl' | 'en' = 'en'): string {
   return sale.items.map((it) => `${formatQuantity(it.quantity, lang)}× ${productName(it.productId)}`).join(', ');
 }

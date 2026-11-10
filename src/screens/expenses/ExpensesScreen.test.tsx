@@ -10,44 +10,44 @@ describe('Expenses screen', () => {
   it('opens the add sheet from ?new=1 and saves an unpaid expense', async () => {
     window.location.hash = '#/expenses?new=1';
     render(<App storage={new MemoryStorage(demoData())} />);
-    const dialog = await screen.findByRole('dialog', { name: 'Nieuwe uitgave' });
+    const dialog = await screen.findByRole('dialog', { name: 'New expense' });
     expect(window.location.hash).toBe('#/expenses');
     const user = userEvent.setup();
-    await user.type(within(dialog).getByLabelText('Bedrag'), '12,50');
-    await user.type(within(dialog).getByLabelText(/Omschrijving/), 'Deksels');
-    await user.click(within(dialog).getByRole('radio', { name: /Verpakking/ }));
+    await user.type(within(dialog).getByLabelText('Amount'), '12.50');
+    await user.type(within(dialog).getByLabelText(/Description/), 'Lids');
+    await user.click(within(dialog).getByRole('radio', { name: /Packaging/ }));
     // Smart default: last supplier used for this category.
-    expect(within(dialog).getByLabelText(/Leverancier/)).toHaveValue('Verpakking Direct');
-    await user.click(within(dialog).getByRole('switch', { name: /Al betaald/ }));
-    expect(within(dialog).getByLabelText('Uiterlijk betalen op')).toHaveValue(addDays(today(), 30));
-    await user.click(within(dialog).getByRole('button', { name: 'Bewaar' }));
+    expect(within(dialog).getByLabelText(/Supplier/)).toHaveValue('Packaging Direct');
+    await user.click(within(dialog).getByRole('switch', { name: /Already paid/ }));
+    expect(within(dialog).getByLabelText('Due date')).toHaveValue(addDays(today(), 30));
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
     expect(screen.queryByRole('dialog')).toBeNull();
-    const row = (await screen.findByText('Deksels')).closest('button')!;
-    expect(within(row).getByText('Nog te betalen')).toBeInTheDocument();
-    expect(within(row).getByText(/12,50/)).toBeInTheDocument();
+    const row = (await screen.findByText('Lids')).closest('button')!;
+    expect(within(row).getByText('Unpaid')).toBeInTheDocument();
+    expect(within(row).getByText(/12\.50/)).toBeInTheDocument();
   });
 
   it('requires amount and category, creates a category inline, and filters unpaid', async () => {
     window.location.hash = '#/expenses';
     render(<App storage={new MemoryStorage(demoData())} />);
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Uitgave' }));
+    await user.click(await screen.findByRole('button', { name: 'Expense' }));
     const dialog = screen.getByRole('dialog');
-    await user.click(within(dialog).getByRole('button', { name: 'Bewaar' }));
-    expect(within(dialog).getAllByText('Vul dit in').length).toBe(2);
-    await user.type(within(dialog).getByLabelText('Bedrag'), '5');
-    await user.click(within(dialog).getByRole('button', { name: /Nieuwe categorie/ }));
-    await user.type(within(dialog).getByLabelText('Nieuwe categorie'), 'Huur keuken{Enter}');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
+    expect(within(dialog).getAllByText('Please fill this in').length).toBe(2);
+    await user.type(within(dialog).getByLabelText('Amount'), '5');
+    await user.click(within(dialog).getByRole('button', { name: /New category/ }));
+    await user.type(within(dialog).getByLabelText('New category'), 'Kitchen rent{Enter}');
     // Enter created the category (did not submit the form).
-    expect(within(dialog).getByRole('radio', { name: /Huur keuken/ })).toHaveAttribute('aria-checked', 'true');
-    await user.click(within(dialog).getByRole('button', { name: 'Bewaar' }));
+    expect(within(dialog).getByRole('radio', { name: /Kitchen rent/ })).toHaveAttribute('aria-checked', 'true');
+    await user.click(within(dialog).getByRole('button', { name: 'Save' }));
     expect(screen.queryByRole('dialog')).toBeNull();
     await act(async () => {});
-    expect(screen.getAllByText('Huur keuken').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Kitchen rent').length).toBeGreaterThan(0);
 
-    await user.click(screen.getByRole('radio', { name: /Nog te betalen/ }));
-    expect(screen.queryByRole('button', { name: /Huur keuken/ })).toBeNull();
-    expect(screen.getByText('150 potten met deksel')).toBeInTheDocument();
+    await user.click(screen.getByRole('radio', { name: /Unpaid/ }));
+    expect(screen.queryByRole('button', { name: /Kitchen rent/ })).toBeNull();
+    expect(screen.getByText('150 jars with lids')).toBeInTheDocument();
   });
 
   it('undo of a delete also restores the import row link (review #8)', async () => {
@@ -58,12 +58,12 @@ describe('Expenses screen', () => {
     window.location.hash = '#/expenses?edit=demo-e-10';
     const user = userEvent.setup();
     render(<App storage={storage} />);
-    const dialog = await screen.findByRole('dialog', { name: 'Uitgave wijzigen' });
-    await user.click(within(dialog).getByRole('button', { name: /Verwijder/ }));
-    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Verwijder' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Edit expense' });
+    await user.click(within(dialog).getByRole('button', { name: /Delete/ }));
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Delete' }));
     const read = () => JSON.parse(storage.text!) as typeof data;
     await waitFor(() => expect(read().importRows.find((r) => r.id === imp.id)!.status).toBe('todo'));
-    await user.click(await screen.findByRole('button', { name: 'Ongedaan maken' }));
+    await user.click(await screen.findByRole('button', { name: 'Undo' }));
     await waitFor(() => {
       const d = read();
       expect(d.expenses.some((e) => e.id === 'demo-e-10')).toBe(true);
@@ -74,8 +74,8 @@ describe('Expenses screen', () => {
   it('opens an existing expense from ?edit=<id>', async () => {
     window.location.hash = '#/expenses?edit=demo-e-7';
     render(<App storage={new MemoryStorage(demoData())} />);
-    const dialog = await screen.findByRole('dialog', { name: 'Uitgave wijzigen' });
-    expect(within(dialog).getByLabelText(/Omschrijving/)).toHaveValue('Etiketten 500 st.');
+    const dialog = await screen.findByRole('dialog', { name: 'Edit expense' });
+    expect(within(dialog).getByLabelText(/Description/)).toHaveValue('500 labels');
     expect(window.location.hash).toBe('#/expenses');
   });
 });

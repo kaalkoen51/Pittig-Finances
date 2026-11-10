@@ -16,6 +16,7 @@ export function autoPluralUnit(unit: string, lang: 'nl' | 'en'): string {
   if (!w || /\s/.test(w)) return w;
   const lower = w.toLowerCase();
   if (lang === 'en') {
+    if (/^(pcs|kg|g|gr|mg|l|ml|cl|dl|oz|lb|lbs|x)$/.test(lower)) return w; // abbreviations stay as they are
     if (/(s|x|z|ch|sh)$/.test(lower)) return w + 'es';
     if (/[^aeiou]y$/.test(lower)) return w.slice(0, -1) + 'ies';
     return w + 's';

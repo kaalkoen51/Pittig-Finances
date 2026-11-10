@@ -24,7 +24,7 @@ export interface FormatMoneyOptions {
  * Format cents as euros: nl → "€ 1.234,56", en → "€1,234.56".
  * Negative values use a real minus sign "−". Non-breaking spaces are used by Intl.
  */
-export function formatMoney(cents: Cents, lang: Language = 'nl', opts: FormatMoneyOptions = {}): string {
+export function formatMoney(cents: Cents, lang: Language = 'en', opts: FormatMoneyOptions = {}): string {
   const whole = cents % 100 === 0;
   const digits = opts.compact && whole ? 0 : 2;
   const f = nf(lang, {
@@ -40,7 +40,7 @@ export function formatMoney(cents: Cents, lang: Language = 'nl', opts: FormatMon
 }
 
 /** Plain number without currency symbol, for editing: 1234.5 € → "1234,50" (nl) / "1234.50" (en). */
-export function centsToInput(cents: Cents | null | undefined, lang: Language = 'nl'): string {
+export function centsToInput(cents: Cents | null | undefined, lang: Language = 'en'): string {
   if (cents === null || cents === undefined || !Number.isFinite(cents)) return '';
   const neg = cents < 0;
   const abs = Math.abs(Math.round(cents));
@@ -51,7 +51,7 @@ export function centsToInput(cents: Cents | null | undefined, lang: Language = '
 }
 
 /** Plain number with thousands separators, no symbol: "1.234,56". */
-export function formatNumber(value: number, lang: Language = 'nl', fractionDigits = 0): string {
+export function formatNumber(value: number, lang: Language = 'en', fractionDigits = 0): string {
   return nf(lang, { minimumFractionDigits: fractionDigits, maximumFractionDigits: fractionDigits }).format(value);
 }
 
@@ -74,8 +74,10 @@ export function centsToEuros(cents: Cents): number {
  * A lone "," is decimal (Dutch). A lone "." is decimal unless it is followed by
  * exactly three digits ("1.234" = 1234 euros, Dutch thousands); multiple equal
  * separators are thousands separators. More than two decimals are rounded.
+ * With `lang` 'en' (typed in the English UI) a lone "," followed by exactly three digits is a
+ * thousands separator too ("1,234" = 1234 euros); bank files pass no language.
  */
-export function parseMoney(input: string | number | null | undefined): Cents | null {
+export function parseMoney(input: string | number | null | undefined, lang?: Language): Cents | null {
   if (input === null || input === undefined) return null;
   if (typeof input === 'number') return Number.isFinite(input) ? eurosToCents(input) : null;
   let s = input.trim();
@@ -123,8 +125,8 @@ export function parseMoney(input: string | number | null | undefined): Cents | n
       intPart = parts.join('');
     } else {
       const [a, b] = parts as [string, string];
-      if (sep === '.' && b.length === 3 && a.length > 0 && a.length <= 3 && a !== '0') {
-        intPart = a + b; // "1.234" → 1234
+      if ((sep === '.' || lang === 'en') && b.length === 3 && a.length > 0 && a.length <= 3 && a !== '0') {
+        intPart = a + b; // "1.234" → 1234 (and "1,234" in English)
       } else {
         intPart = a;
         fracPart = b;

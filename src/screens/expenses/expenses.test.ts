@@ -102,7 +102,7 @@ describe('expense list', () => {
     const unpaid = filterExpenses(all, { query: '', unpaidOnly: true }, lookups);
     expect(unpaid.length).toBeGreaterThan(0);
     expect(unpaid.every((e) => e.paidOn === null)).toBe(true);
-    const bySupplier = filterExpenses(all, { query: 'drukkerij', unpaidOnly: false }, lookups);
+    const bySupplier = filterExpenses(all, { query: 'printing', unpaidOnly: false }, lookups);
     expect(bySupplier.length).toBeGreaterThan(0);
     expect(bySupplier.every((e) => e.supplierId === 'demo-s-print')).toBe(true);
     const byCat = filterExpenses(all, { query: '', categoryId: 'demo-cat-ingr', unpaidOnly: false }, lookups);

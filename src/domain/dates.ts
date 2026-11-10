@@ -108,10 +108,10 @@ const LOCALE: Record<Language, string> = { nl: 'nl-NL', en: 'en-GB' };
 export type DateStyle = 'short' | 'medium' | 'long' | 'month';
 
 /**
- * Display a date: short "12-03-2026" (nl) / "12/03/2026" (en); medium "12 mrt 2026";
- * long "donderdag 12 maart 2026"; month "maart 2026".
+ * Display a date: short "12/03/2026" (en) / "12-03-2026" (nl); medium "12 Mar 2026";
+ * long "Thursday 12 March 2026"; month "March 2026".
  */
-export function formatDate(s: ISODate | undefined | null, lang: Language = 'nl', style: DateStyle = 'medium'): string {
+export function formatDate(s: ISODate | undefined | null, lang: Language = 'en', style: DateStyle = 'medium'): string {
   if (!s || !isISODate(s)) return '';
   const d = fromISODate(s);
   if (style === 'short') {
@@ -127,8 +127,8 @@ export function formatDate(s: ISODate | undefined | null, lang: Language = 'nl',
   return new Intl.DateTimeFormat(LOCALE[lang], opts).format(d);
 }
 
-/** Month key 'YYYY-MM' → "maart 2026". */
-export function formatMonth(key: string, lang: Language = 'nl'): string {
+/** Month key 'YYYY-MM' → "March 2026". */
+export function formatMonth(key: string, lang: Language = 'en'): string {
   return formatDate(`${key}-01`, lang, 'month');
 }
 

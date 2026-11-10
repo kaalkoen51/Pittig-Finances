@@ -206,7 +206,7 @@ function emptyPlaceholder(): AppData {
     expenses: [],
     categories: [],
     importRows: [],
-    settings: { businessName: '', language: 'nl', firstRunDone: false },
+    settings: { businessName: '', language: 'en', firstRunDone: false },
   };
 }
 

@@ -14,7 +14,7 @@ export interface DateFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
 
 /**
  * Native date picker, value in ISO format. The browser formats the field by its own locale
- * (possibly mm/dd/yyyy), so the chosen date is repeated underneath in words ("dinsdag 10 november 2026").
+ * (possibly mm/dd/yyyy), so the chosen date is repeated underneath in words ("Tuesday 10 November 2026").
  */
 export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(function DateField({ value, onChange, className, id, ...rest }, ref) {
   const f = useFieldProps(id);

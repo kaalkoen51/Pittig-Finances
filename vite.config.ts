@@ -54,8 +54,8 @@ export default defineConfig({
       manifest: {
         name: 'Pittig Finances',
         short_name: 'Pittig',
-        description: 'Eenvoudige financiën voor je kleine bedrijf',
-        lang: 'nl',
+        description: 'Simple finances for your small business',
+        lang: 'en',
         start_url: './',
         scope: './',
         display: 'standalone',

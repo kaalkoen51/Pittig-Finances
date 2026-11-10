@@ -25,7 +25,7 @@ Every screen may add its own CSS file (`src/screens/<name>/<name>.css`, imported
 - **Delete vs archive**: clients, suppliers, products, batches, categories: if `isReferenced(c,id)` show Archive instead of Delete (`remove` returns `false` and does nothing when referenced). `archive('batches', id, v)` sets `closed`.
 - Payments with a client: `Payment.clientId` is required. "Paid already" on a sale with client ⇒ also upsert a `Payment {clientId, saleId, amount: total, date: sale.date, auto: true}`. Only `auto` payments are changed/removed when the sale is edited (legacy unflagged rule in `saleForm.ts autoPaymentFor`). Clientless sales are always paid (no payment record).
 - Remember defaults: `updateSettings({ lastUsed: { clientId } })` (merged).
-- One primary button per view (per-row actions are `secondary`, low-key/destructive links are `plain`). Dutch default; every visible string through i18n.
+- One primary button per view (per-row actions are `secondary`, low-key/destructive links are `plain`). English default (Dutch selectable in Settings); every visible string through i18n.
 - "To sort" matching (`excel/match.ts`): `matchSuggestions` also returns unpaid bills with the same amount dated up to 120 days before the bank date (`unpaid: true`, supplier-name matches first); a row with suggestions starts on "Bestaat al"; confirming an unpaid bill sets `paidOn` = bank date. `fuzzyNameMatch`/`namesAlike` prefill client/supplier (ignores BV/VOF, punctuation).
 
 ## Domain (`src/domain`, import from `../../domain` or specific files)
@@ -49,7 +49,7 @@ periodSummary(data, range): PeriodSummary{moneyIn,moneyOut,result,sold,costs,pro
 monthlySummaries(data): {month:'YYYY-MM', summary}[]  // newest first
 isReferenced(data, collection, id); hasUserContent(data); PROTECTED_COLLECTIONS
 ```
-`money.ts`: `formatMoney(c, lang, {signed?, compact?})` ("€ 1.234,56" / "€1,234.56", minus is "−"), `parseMoney(str|number) → Cents|null` (12,50 · 12.50 · 1.234,56 · 1,234.56 · € 12 · 12,- · (12,50) · -12), `centsToInput(c, lang)`, `eurosToCents(n)`, `formatNumber`, `sumCents`.
+`money.ts`: `formatMoney(c, lang, {signed?, compact?})` ("€ 1.234,56" / "€1,234.56", minus is "−"), `parseMoney(str|number, lang?) → Cents|null` (12,50 · 12.50 · 1.234,56 · 1,234.56 · € 12 · 12,- · (12,50) · -12), `centsToInput(c, lang)`, `eurosToCents(n)`, `formatNumber`, `sumCents`.
 `dates.ts`: `today, toISODate, fromISODate, isISODate, addDays, addMonths, daysBetween, compareDates, monthKey, startOfMonth, endOfMonth, inRange(d, range), periodRange('thisMonth'|'lastMonth'|'thisYear'|'all', ref?), monthRange('YYYY-MM'), formatDate(d, lang, 'short'|'medium'|'long'|'month'), formatMonth, parseDate(str|Date)` (dd-mm-yyyy, d/m/yy, yyyy-mm-dd, yyyymmdd → ISO|null).
 `importing.ts`: `normalizeDescription, importFingerprint({date,amount,description}) → 'date|amount|normalized description'` (no source file name: overlapping bank downloads must dedupe; `#n` suffix for the n-th identical row in one file), `dedupeKey(row)` (strips the `|source` older versions appended), `dedupeImportRows(existing, incoming) → {fresh, duplicates}`.
 `migrate.ts`: `CURRENT_VERSION, emptyData(lang?), defaultCategories(lang?), parseAppData(text) → ParseResult, upgradeAppData(obj), validate(obj), serializeAppData(data)`. JSON without `version` is corrupt unless the 8 core collections are lists (pre-release v0 draft); migration never drops non-list collections or non-object items silently (→ corrupt). Storage never auto-saves a migration result without records.
@@ -92,7 +92,7 @@ Web: IndexedDB `pittig-finances` (stores `kv`, `backups`), daily backup (keep 30
 ## i18n (`src/i18n`)
 Area file `src/i18n/<area>.ts`: `export const nl = {...} as const; export const en: Translations<typeof nl> = {...}` (same keys – a test enforces it). Areas: common, overview, sales, clients, expenses, suppliers, batches, import, settings.
 ```ts
-const t = useT('sales'); t('title'); t('key', { name: 'Toko' })   // "{name}" interpolation, typed keys, falls back to nl
+const t = useT('sales'); t('title'); t('key', { name: 'Toko' })   // "{name}" interpolation, typed keys, falls back to en
 const tc = useT('common');                                         // shared words: save, cancel, delete, archive, client, amount, paid, overdue, walkIn, …
 const f = useFormat(); f.money(1250, {signed}) f.date(iso, 'medium'|'long') f.month('2026-03'); f.lang   // UI dates are always "9 nov 2026" ('short' is mapped to medium)
 plural(n, one, other); unitFor(product, n, lang) → "pot"/"potten"; autoPluralUnit(unit, lang)   // from '../../i18n'

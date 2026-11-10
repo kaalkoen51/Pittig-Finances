@@ -41,7 +41,7 @@ All money stored as integer cents. Dates as `YYYY-MM-DD` strings. IDs are UUIDs.
   Market fees, Marketing, Other.
 - `ImportRow { id, date, description, amount, source, status: 'todo'|'done'|'ignored', linkedId? }`
   rows from a bank/Excel import waiting to be sorted by hand.
-- `Settings { businessName, currency ('EUR'), language ('nl'|'en'), firstRunDone }`
+- `Settings { businessName, currency ('EUR'), language ('en' default | 'nl'), firstRunDone }`
 - `AppData { version, clients, suppliers, products, batches, sales, payments,
    expenses, categories, importRows, settings }` with a `version` for migrations.
 
@@ -92,8 +92,8 @@ Derived (pure functions in src/domain/calc.ts, unit tested):
   last used client/product), keyboard friendly (Enter to save, Esc to close).
 - Amounts right aligned, tabular numbers, green for in, neutral for out,
   never more than one primary button per view. Empty states that explain what to do.
-- UI language: Dutch and English (simple dictionary in src/i18n), Dutch default
-  (business owner presumed Dutch-speaking; switch in Settings).
+- UI language: English and Dutch (simple dictionary in src/i18n), English default
+  (owner's request; Dutch can be chosen in Settings and saved data keeps its language).
 
 ## Architecture / folders
 ```

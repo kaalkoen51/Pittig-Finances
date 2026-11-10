@@ -15,11 +15,11 @@ async function go(page: Page, path: string, heading: string | RegExp) {
 
 async function save(page: Page) {
   const dialog = page.getByRole('dialog');
-  await dialog.getByRole('button', { name: 'Bewaar' }).click();
+  await dialog.getByRole('button', { name: 'Save' }).click();
   await expect(dialog).toHaveCount(0);
 }
 
-/** Pick an existing option in a Combobox or create it ("“X” toevoegen"). */
+/** Pick an existing option in a Combobox or create it ("Add “X”"). */
 async function pickOrCreate(page: Page, label: RegExp, value: string) {
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('combobox', { name: label }).fill(value);
@@ -30,98 +30,110 @@ async function pickOrCreate(page: Page, label: RegExp, value: string) {
 test('sale on account → client balance → payment → balance 0', async ({ page }) => {
   // 1. Product + batch
   await go(page, '/batches', 'Batches');
-  await page.getByRole('button', { name: 'Eerste product toevoegen' }).click();
-  let dialog = page.getByRole('dialog', { name: 'Nieuw product' });
-  await dialog.getByLabel('Naam').fill('Sambal Pittig');
-  await dialog.getByLabel(/Standaardprijs/).fill('6,50');
+  await page.getByRole('button', { name: 'Add first product' }).click();
+  let dialog = page.getByRole('dialog', { name: 'New product' });
+  await dialog.getByLabel('Name').fill('Sambal Pittig');
+  await dialog.getByLabel(/Default price/).fill('6.50');
   await save(page);
 
   const product = page.getByRole('region', { name: 'Sambal Pittig' });
   await expect(product).toBeVisible();
-  await product.getByRole('button', { name: 'Batch toevoegen' }).click();
-  dialog = page.getByRole('dialog', { name: 'Nieuwe batch' });
-  await dialog.getByLabel('Aantal gemaakt').fill('40');
+  await product.getByRole('button', { name: 'Add batch' }).click();
+  dialog = page.getByRole('dialog', { name: 'New batch' });
+  await dialog.getByLabel('Quantity made').fill('40');
   await save(page);
-  await expect(product.getByRole('link', { name: /Over 40/ })).toBeVisible();
+  await expect(product.getByRole('link', { name: /Left 40/ })).toBeVisible();
 
   // 2. Sale for a new client, not paid yet
-  await go(page, '/sales', 'Verkopen');
-  await page.getByRole('button', { name: 'Nieuwe verkoop' }).click();
-  dialog = page.getByRole('dialog', { name: 'Nieuwe verkoop' });
-  await pickOrCreate(page, /Klant/, 'Toko Rasa');
+  await go(page, '/sales', 'Sales');
+  await page.getByRole('button', { name: 'New sale' }).click();
+  dialog = page.getByRole('dialog', { name: 'New sale' });
+  await pickOrCreate(page, /Client/, 'Toko Rasa');
   await expect(dialog.getByRole('combobox', { name: 'Product' })).toHaveValue('Sambal Pittig');
-  await dialog.getByLabel(/^Aantal/).fill('4');
-  await expect(dialog.getByLabel('Prijs per stuk')).toHaveValue('6,50');
-  await expect(dialog.getByRole('switch', { name: /Al betaald/ })).not.toBeChecked();
+  await dialog.getByLabel(/^Quantity/).fill('4');
+  await expect(dialog.getByLabel('Price each')).toHaveValue('6.50');
+  await expect(dialog.getByRole('switch', { name: /Already paid/ })).not.toBeChecked();
   await save(page);
-  await expect(page.getByRole('button', { name: all('Toko Rasa', '26,00', 'Open') })).toBeVisible();
+  await expect(page.getByRole('button', { name: all('Toko Rasa', '26.00', 'Open') })).toBeVisible();
 
   // Batch shows the units sold
   await go(page, '/batches', 'Batches');
-  await expect(page.getByRole('link', { name: all('Verkocht 4', 'Over 36') })).toBeVisible();
+  await expect(page.getByRole('link', { name: all('Sold 4', 'Left 36') })).toBeVisible();
 
   // 3. Client open balance shows it
-  await go(page, '/clients', 'Klanten');
+  await go(page, '/clients', 'Clients');
   const clientRow = page.getByRole('link', { name: /Toko Rasa/ });
-  await expect(clientRow).toContainText('26,00');
-  await expect(clientRow).toContainText('Nog open');
+  await expect(clientRow).toContainText('26.00');
+  await expect(clientRow).toContainText('Still open');
   await clientRow.click();
   await expect(page.getByRole('heading', { level: 1, name: 'Toko Rasa' })).toBeVisible();
   const main = page.getByRole('main');
-  await expect(main).toContainText(/Nog open\s*€\s*26,00/);
+  await expect(main).toContainText(/Still open\s*€\s*26\.00/);
 
   // 4. Record payment (amount prefilled with the open balance)
-  await main.getByRole('button', { name: 'Betaling ontvangen' }).click();
-  dialog = page.getByRole('dialog', { name: 'Betaling ontvangen' });
-  await expect(dialog.getByLabel('Bedrag')).toHaveValue('26,00');
+  await main.getByRole('button', { name: 'Record payment' }).click();
+  dialog = page.getByRole('dialog', { name: 'Record payment' });
+  await expect(dialog.getByLabel('Amount')).toHaveValue('26.00');
   await save(page);
 
   // 5. Balance is 0
-  await expect(main).toContainText(/Nog open\s*€\s*0,00/);
-  await expect(main).toContainText(/Ontvangen\s*€\s*26,00/);
-  await go(page, '/sales', 'Verkopen');
-  await expect(page.getByRole('button', { name: all('Toko Rasa', '26,00', 'Betaald') })).toBeVisible();
+  await expect(main).toContainText(/Still open\s*€\s*0\.00/);
+  await expect(main).toContainText(/Received\s*€\s*26\.00/);
+  await go(page, '/sales', 'Sales');
+  await expect(page.getByRole('button', { name: all('Toko Rasa', '26.00', 'Paid') })).toBeVisible();
 });
 
-test('unpaid expense with new supplier → "Te betalen" → mark paid', async ({ page }) => {
-  await go(page, '/expenses', 'Uitgaven');
-  await page.getByRole('button', { name: 'Eerste uitgave toevoegen' }).click();
-  const dialog = page.getByRole('dialog', { name: 'Nieuwe uitgave' });
-  await dialog.getByLabel('Bedrag').fill('42,50');
-  await dialog.getByLabel(/Omschrijving/).fill('Rode pepers');
-  await dialog.getByRole('radio', { name: 'Ingrediënten' }).click();
-  await pickOrCreate(page, /Leverancier/, 'Groothandel Peper');
-  const paid = dialog.getByRole('switch', { name: /Al betaald/ });
+test('unpaid expense with new supplier → "To pay" → mark paid', async ({ page }) => {
+  await go(page, '/expenses', 'Expenses');
+  await page.getByRole('button', { name: 'Add first expense' }).click();
+  const dialog = page.getByRole('dialog', { name: 'New expense' });
+  await dialog.getByLabel('Amount').fill('42.50');
+  await dialog.getByLabel(/Description/).fill('Red chillies');
+  await dialog.getByRole('radio', { name: 'Ingredients' }).click();
+  await pickOrCreate(page, /Supplier/, 'Groothandel Peper');
+  const paid = dialog.getByRole('switch', { name: /Already paid/ });
   await expect(paid).toBeChecked(); // default: paid
   await paid.click();
   await expect(paid).not.toBeChecked();
   await save(page);
-  await expect(page.getByRole('button', { name: all('Rode pepers', 'Nog te betalen', '42,50') })).toBeVisible();
+  await expect(page.getByRole('button', { name: all('Red chillies', 'Unpaid', '42.50') })).toBeVisible();
 
   // Appears under suppliers owed
-  await go(page, '/suppliers', 'Te betalen');
+  await go(page, '/suppliers', 'To pay');
   const main = page.getByRole('main');
-  await expect(main).toContainText(/Totaal nog te betalen\s*€\s*42,50/);
+  await expect(main).toContainText(/Total still to pay\s*€\s*42\.50/);
   await main.getByRole('link', { name: /Groothandel Peper/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Groothandel Peper' })).toBeVisible();
 
   // Mark paid
-  await main.getByRole('button', { name: /Zet op betaald: Rode pepers/ }).click();
-  await expect(main).toContainText('Alles is betaald.');
-  await expect(main.getByRole('button', { name: all('Rode pepers', 'betaald') })).toBeVisible();
+  await main.getByRole('button', { name: /Mark as paid: Red chillies/ }).click();
+  await expect(main).toContainText('Everything is paid.');
+  await expect(main.getByRole('button', { name: all('Red chillies', 'paid') })).toBeVisible();
 
-  await go(page, '/suppliers', 'Te betalen');
-  await expect(main).not.toContainText('Totaal nog te betalen');
+  await go(page, '/suppliers', 'To pay');
+  await expect(main).not.toContainText('Total still to pay');
 });
 
 test('data survives a reload', async ({ page }) => {
-  await go(page, '/clients', 'Klanten');
-  await page.getByRole('main').getByRole('button', { name: /Klant/ }).first().click();
-  await page.getByRole('dialog').getByLabel('Naam').fill('Delicatessen De Kroon');
+  await go(page, '/clients', 'Clients');
+  await page.getByRole('main').getByRole('button', { name: /Client/ }).first().click();
+  await page.getByRole('dialog').getByLabel('Name').fill('Delicatessen De Kroon');
   await save(page);
   // Wait for the debounced autosave (300 ms) to reach IndexedDB, then reload.
   await page.waitForTimeout(1000);
-  await go(page, '/clients', 'Klanten');
+  await go(page, '/clients', 'Clients');
   await page.reload();
   await expect(page.getByRole('link', { name: /Delicatessen De Kroon/ })).toBeVisible();
+});
+
+test('starts in English; Dutch can be chosen in Settings and is remembered', async ({ page }) => {
+  await go(page, '/settings', 'Settings');
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await page.getByRole('radio', { name: 'Nederlands' }).click();
+  await expect(page.getByRole('heading', { level: 1, name: 'Instellingen' })).toBeVisible();
+  await page.waitForTimeout(1000); // debounced autosave
+  await page.reload();
+  await expect(page.getByRole('heading', { level: 1, name: 'Instellingen' })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'nl');
+  await go(page, '/sales', 'Verkopen');
 });

@@ -6,7 +6,7 @@ track of bills to pay, and import/export Excel.
 
 - **Windows desktop app** (Electron, one-click installer) – the main product.
 - **Phone**: the same app as a responsive web app / PWA (data is per device).
-- Dutch and English UI. No VAT. Manual categorisation only.
+- English UI by default; Dutch can be chosen under Settings → Language. No VAT. Manual categorisation only.
 
 ## Develop
 

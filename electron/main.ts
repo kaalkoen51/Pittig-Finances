@@ -9,7 +9,7 @@
  */
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, screen, session, shell, type IpcMainInvokeEvent } from 'electron';
 import { autoUpdater } from 'electron-updater';
-import { promises as fs } from 'node:fs';
+import { promises as fs, readFileSync } from 'node:fs';
 import path from 'node:path';
 import { parseAppData } from '../src/domain/migrate';
 import { IPC, type PittigBridgeInfo } from '../src/storage/electronApi';
@@ -39,9 +39,6 @@ const devServerUrl = process.argv.find((a) => a.startsWith('--dev-server-url='))
 const isDev = !!devServerUrl;
 
 app.setName(APP_NAME);
-// Dutch UI locale for Chromium, so native date fields read dd-mm-jjjj and the date picker is Dutch
-// even on an English Windows. Must be set before the app is ready.
-app.commandLine.appendSwitch('lang', 'nl');
 if (process.platform === 'win32') app.setAppUserModelId('nl.pittig.finances');
 
 // ---------- paths ----------
@@ -51,8 +48,30 @@ const docsDir = () => path.join(app.getPath('documents'), APP_NAME);
 const backupDir = () => path.join(docsDir(), 'Backups');
 const windowStatePath = () => path.join(userData(), 'window-state.json');
 
-/** Dialog language: Dutch unless Windows runs in English (call after 'ready'). */
-const tr = (dutch: string, english: string) => (app.getLocale().toLowerCase().startsWith('en') ? english : dutch);
+/**
+ * App language as saved in Settings: English unless the saved data says Dutch. Read straight from
+ * the data file (sync, tolerant of a missing/damaged file) and refreshed on every save.
+ */
+function readSavedLanguage(): 'nl' | 'en' {
+  try {
+    const parsed = JSON.parse(readFileSync(dataPath(), 'utf8')) as { settings?: { language?: unknown } };
+    return parsed?.settings?.language === 'nl' ? 'nl' : 'en';
+  } catch {
+    return 'en';
+  }
+}
+let uiLanguage: 'nl' | 'en' = readSavedLanguage();
+function noteSavedLanguage(text: string): void {
+  const m = /"language"\s*:\s*"(nl|en)"/.exec(text);
+  if (m) uiLanguage = m[1] as 'nl' | 'en';
+}
+// Chromium UI locale follows the app language, so native date fields read dd/mm/yyyy (English) or
+// dd-mm-jjjj (Dutch) whatever the Windows language is. Must be set before the app is ready, so a
+// language change in Settings reaches the date picker after the next start.
+app.commandLine.appendSwitch('lang', uiLanguage === 'nl' ? 'nl' : 'en-GB');
+
+/** Dialog language: follows the app language (English by default). */
+const tr = (dutch: string, english: string) => (uiLanguage === 'nl' ? dutch : english);
 
 // ---------- single instance ----------
 if (!app.requestSingleInstanceLock()) {
@@ -270,6 +289,7 @@ function registerIpc(): void {
       // App left open past midnight: still make the day's backup (of the previous version) first.
       await ensureDailyBackup();
       await atomicWrite(dataPath(), text);
+      noteSavedLanguage(text);
       return { savedAt: new Date().toISOString() };
     }),
   );

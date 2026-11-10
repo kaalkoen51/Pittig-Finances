@@ -66,6 +66,15 @@ describe('formatMoney', () => {
   });
   it('formats English', () => {
     expect(formatMoney(123456, 'en')).toBe('€1,234.56');
+    expect(formatMoney(123450)).toBe('€1,234.50'); // English is the default
+    expect(formatMoney(-1250)).toBe('−€12.50');
+  });
+  it('reads "1,234" as thousands only when typed in the English UI', () => {
+    expect(parseMoney('1,234', 'en')).toBe(123400);
+    expect(parseMoney('12,5', 'en')).toBe(1250);
+    expect(parseMoney('0,234', 'en')).toBe(23);
+    expect(parseMoney('1,234')).toBe(123);
+    expect(parseMoney('1,234', 'nl')).toBe(123);
   });
 });
 
@@ -76,6 +85,7 @@ describe('centsToInput', () => {
       expect(parseMoney(centsToInput(c, 'en'))).toBe(c);
     }
     expect(centsToInput(1250, 'nl')).toBe('12,50');
+    expect(centsToInput(1250)).toBe('12.50');
     expect(centsToInput(null)).toBe('');
   });
 });

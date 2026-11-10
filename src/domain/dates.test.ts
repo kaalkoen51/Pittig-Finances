@@ -41,5 +41,11 @@ describe('dates', () => {
     expect(formatDate('2026-03-12', 'nl', 'short')).toBe('12-03-2026');
     expect(formatDate('2026-03-12', 'en', 'short')).toBe('12/03/2026');
     expect(formatDate('2026-03-12', 'nl', 'month')).toBe('maart 2026');
+    expect(formatDate('2026-11-09', 'nl')).toBe('9 nov 2026');
+  });
+  it('formats in English by default', () => {
+    expect(formatDate('2026-11-09')).toBe('9 Nov 2026');
+    expect(formatDate('2026-11-09', 'en', 'month')).toBe('November 2026');
+    expect(formatDate('2026-11-09', 'en', 'long')).toMatch(/^Monday,? 9 November 2026$/);
   });
 });

@@ -16,7 +16,7 @@ export interface MoneyInputProps extends Omit<InputHTMLAttributes<HTMLInputEleme
 
 /**
  * Euro amount input. Accepts "12,50", "12.50", "1.234,56", "€ 12" etc. (parseMoney).
- * Reformats to "12,50" on blur. Shows "€" prefix. inputMode=decimal for phone keyboards.
+ * Reformats to "12.50" (en) / "12,50" (nl) on blur. Shows "€" prefix. inputMode=decimal for phone keyboards.
  */
 export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function MoneyInput(
   { value, onChange, allowNegative = false, className, id, onBlur, onFocus, placeholder, ...rest },
@@ -31,7 +31,7 @@ export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function
     if (!focused.current) setText(centsToInput(value ?? null, lang));
   }, [value, lang]);
 
-  const parsed = text.trim() === '' ? null : parseMoney(text);
+  const parsed = text.trim() === '' ? null : parseMoney(text, lang);
   const invalid = text.trim() !== '' && parsed === null;
 
   return (
@@ -56,7 +56,7 @@ export const MoneyInput = forwardRef<HTMLInputElement, MoneyInputProps>(function
         onChange={(e) => {
           const t = e.target.value;
           setText(t);
-          let c = t.trim() === '' ? null : parseMoney(t);
+          let c = t.trim() === '' ? null : parseMoney(t, lang);
           if (c !== null && !allowNegative) c = Math.abs(c);
           onChange(c);
         }}
