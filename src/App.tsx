@@ -8,10 +8,15 @@ import { ConfirmProvider, ToastProvider } from './ui';
 
 function Root() {
   const { status } = useAppStatus();
-  const lang = useData().settings.language;
+  const { language: lang, theme = 'system' } = useData().settings;
   useEffect(() => {
     document.documentElement.lang = lang;
   }, [lang]);
+  useEffect(() => {
+    const root = document.documentElement;
+    if (theme === 'system') delete root.dataset.theme;
+    else root.dataset.theme = theme;
+  }, [theme]);
   if (status === 'loading') return <LoadingScreen />;
   if (status === 'recovery') return <RecoveryScreen />;
   return <AppShell />;

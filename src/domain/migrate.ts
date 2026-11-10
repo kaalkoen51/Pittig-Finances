@@ -270,6 +270,7 @@ export function validate(raw: unknown): ParseResult {
     const s = raw.settings;
     v.str(s, 'businessName', 'settings');
     v.oneOf(s, 'language', 'settings', ['nl', 'en']);
+    v.oneOf(s, 'theme', 'settings', ['system', 'light', 'dark'], true);
     v.bool(s, 'firstRunDone', 'settings');
     if (s.lastUsed !== undefined && !isObj(s.lastUsed)) v.fail('settings.lastUsed', 'expected an object');
   }

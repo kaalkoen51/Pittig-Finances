@@ -16,6 +16,7 @@ export type ISODate = string; // 'YYYY-MM-DD'
 export type ISODateTime = string; // new Date().toISOString()
 export type Id = string;
 export type Language = 'nl' | 'en';
+export type Theme = 'system' | 'light' | 'dark';
 
 export interface Client {
   id: Id;
@@ -157,6 +158,8 @@ export interface ImportRow {
 export interface Settings {
   businessName: string;
   language: Language;
+  /** Colour theme; missing = 'system' (follow the device). */
+  theme?: Theme;
   firstRunDone: boolean;
   /** Remembered choices for sensible form defaults. */
   lastUsed?: {

@@ -43,6 +43,20 @@ describe('Settings', () => {
     await waitFor(() => expect(stored(storage).settings.language).toBe('en'));
   });
 
+  it('switches the colour theme and remembers it', async () => {
+    const { storage, user } = await setup(demoData());
+    expect(screen.getByRole('radio', { name: 'Automatic' })).toBeChecked();
+    expect(document.documentElement.dataset.theme).toBeUndefined();
+    await user.click(screen.getByRole('radio', { name: 'Dark' }));
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    await waitFor(() => expect(stored(storage).settings.theme).toBe('dark'));
+    await user.click(screen.getByRole('radio', { name: 'Light' }));
+    expect(document.documentElement.dataset.theme).toBe('light');
+    await user.click(screen.getByRole('radio', { name: 'Automatic' }));
+    expect(document.documentElement.dataset.theme).toBeUndefined();
+    await waitFor(() => expect(stored(storage).settings.theme).toBe('system'));
+  });
+
   it('shows the web-only note and no update button on web', async () => {
     await setup(demoData());
     expect(screen.getByRole('note')).toHaveTextContent(/Data is stored on this device only/);
@@ -132,7 +146,8 @@ describe('Settings', () => {
       },
     });
     await user.click(screen.getByRole('button', { name: 'Export everything to Excel' }));
-    expect(await screen.findByText('Excel file saved')).toBeInTheDocument();
+    // Loading exceljs and building the workbook can take more than findBy's default 1 s on a busy machine.
+    expect(await screen.findByText('Excel file saved', undefined, { timeout: 10_000 })).toBeInTheDocument();
     expect(saved).toMatch(/^Pittig Finances \d{4}-\d{2}-\d{2}\.xlsx$/);
   });
 });
