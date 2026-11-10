@@ -1,0 +1,85 @@
+/* Expenses screen + expense sheet (also used from Suppliers and Batches). */
+.expenses-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  width: 100%;
+}
+.expenses-toolbar__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1);
+}
+.expenses-toolbar__search {
+  flex: 1 1 240px;
+}
+.expenses-toolbar__chips {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+}
+.expenses-toolbar__chips .pf-chip {
+  flex: none;
+}
+
+.expenses-month {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+.expenses-month__total {
+  text-transform: none;
+}
+
+.expenses-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin: 0 var(--s-half);
+}
+.expenses-batch-tag {
+  display: inline-block;
+  margin-left: var(--s-1);
+  padding: 0 6px;
+  border-radius: var(--radius-pill);
+  background: var(--neutral-soft);
+  color: var(--label);
+  font-size: var(--text-xs);
+  line-height: 18px;
+}
+
+/* Sheet */
+.expenses-amount-field .pf-money__input {
+  min-height: 56px;
+  font-size: var(--text-2xl);
+  font-weight: var(--weight-semibold);
+}
+.expenses-amount-field .pf-money__prefix {
+  font-size: var(--text-xl);
+}
+.expenses-newcat {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-1);
+  flex: 1 1 220px;
+}
+.expenses-newcat__input {
+  min-height: 36px;
+  flex: 1;
+  min-width: 0;
+}
+.expenses-newcat__chip {
+  border-style: dashed;
+  color: var(--accent);
+}
+.expenses-sheet .pf-form-section > * + * {
+  margin-top: var(--s-2);
+}
+.expenses-detail {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}

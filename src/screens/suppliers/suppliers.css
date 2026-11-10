@@ -1,0 +1,55 @@
+/* Suppliers ("Who I owe") screen. */
+.suppliers-totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-4);
+}
+.suppliers-overdue {
+  color: var(--danger);
+}
+.suppliers-allclear {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  margin: 0;
+  color: var(--success);
+  font-weight: var(--weight-medium);
+}
+.suppliers-hint {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+.suppliers-notes {
+  margin: 0;
+  color: var(--label-2);
+  white-space: pre-wrap;
+}
+.suppliers-listhead {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+.suppliers-unpaid {
+  display: flex;
+  align-items: center;
+  gap: var(--s-1);
+  padding-right: var(--s-2);
+}
+.suppliers-unpaid__main {
+  flex: 1;
+  min-width: 0;
+}
+.suppliers-unpaid__pay {
+  flex: none;
+}
+@media (max-width: 759.98px) {
+  .suppliers-totals {
+    gap: var(--s-2);
+  }
+  .suppliers-unpaid__pay .pf-btn__label {
+    display: none;
+  }
+}
+.suppliers-sheet .pf-form-section > * + * {
+  margin-top: var(--s-2);
+}
