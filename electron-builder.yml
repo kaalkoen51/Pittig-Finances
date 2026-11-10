@@ -1,0 +1,39 @@
+# electron-builder config for the Windows installer. Build: `npm run dist:win` (CI: release-windows.yml).
+appId: nl.pittig.finances
+productName: Pittig Finances
+copyright: Copyright © Pittig
+directories:
+  output: release
+  buildResources: build
+# main.cjs bundles electron-updater (scripts/build-electron.mjs), so no node_modules are shipped.
+files:
+  - dist/**/*
+  - dist-electron/**/*
+  - "!dist-electron/*.map"
+  - package.json
+  - "!node_modules/**/*"
+asar: true
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.ico
+  artifactName: Pittig-Finances-Setup-${version}.${ext}
+nsis:
+  # Simplest possible installer for a non-technical user: one click, per-user, no admin rights.
+  oneClick: true
+  perMachine: false
+  allowElevation: false
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Pittig Finances
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false # never delete pittig-data.json on uninstall/upgrade
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  uninstallDisplayName: Pittig Finances
+publish:
+  provider: github
+  owner: kaalkoen51
+  repo: Pittig-Finances
+  releaseType: release

@@ -1,0 +1,89 @@
+/* Settings screen. Tokens only. */
+.settings-screen p {
+  margin: 0;
+}
+.settings-hint {
+  font-size: var(--text-sm);
+}
+.settings-form {
+  margin: 0;
+}
+.settings-dot {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+}
+.settings-add {
+  color: var(--accent);
+}
+.settings-list-footer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+}
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+}
+.settings-last {
+  font-weight: var(--weight-medium);
+}
+.settings-path {
+  overflow-wrap: anywhere;
+}
+.settings-note {
+  display: flex;
+  gap: var(--s-1);
+  align-items: flex-start;
+  padding: 12px var(--s-2);
+  border-radius: var(--radius-sm);
+  background: var(--warning-soft);
+}
+.settings-data-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-2);
+}
+.settings-data-row + .settings-data-row {
+  padding-top: var(--s-2);
+  border-top: 0.5px solid var(--separator);
+}
+.settings-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+.settings-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 0;
+  cursor: pointer;
+  box-shadow: inset 0 0 0 1px var(--separator);
+}
+.settings-swatch.is-selected {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+.settings-color-input {
+  width: 40px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+}
+@media (max-width: 759px) {
+  .settings-data-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+.settings-note svg {
+  flex: none;
+  margin-top: 2px;
+}

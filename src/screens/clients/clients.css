@@ -1,0 +1,71 @@
+.clients-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--s-2);
+}
+@media (max-width: 479.98px) {
+  .clients-stats {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+.clients-open {
+  color: var(--warning);
+}
+.clients-balance {
+  font-size: var(--text-xs);
+  color: var(--label-2);
+  font-variant-numeric: tabular-nums;
+}
+.clients-contact {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: var(--s-1) var(--s-2);
+  margin: 0;
+}
+.clients-contact dt {
+  color: var(--label-2);
+  font-size: var(--text-sm);
+}
+.clients-contact dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.clients-contact a {
+  color: var(--accent);
+  text-decoration: none;
+}
+.clients-notes {
+  white-space: pre-wrap;
+}
+.clients-p {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+.clients-danger {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-1);
+  padding-top: var(--s-2);
+}
+.clients-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  cursor: pointer;
+}
+.clients-link:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 4px;
+}
+.clients-form > .pf-field + .pf-field,
+.clients-form > .pf-form-row .pf-field + .pf-field {
+  margin-top: 0;
+}
+
+.clients-delete {
+  color: var(--danger);
+}
