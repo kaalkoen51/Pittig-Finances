@@ -43,6 +43,16 @@ jobs:
         run: npm test
       - name: Build
         run: npm run build && npm run build:electron
+      # electron-builder uploads the installer and its update files in parallel; if the release does
+      # not exist yet, both uploads try to create it and one fails ("must have a valid tag").
+      # Creating the release first avoids that race.
+      - name: Make sure the GitHub release exists
+        if: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.version != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="v$(node -p "require('./package.json').version")"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --target "$GITHUB_SHA" --title "${TAG#v}" --notes "Pittig Finances ${TAG#v}"
       - name: Package and publish release
         if: ${{ startsWith(github.ref, 'refs/tags/v') || inputs.version != '' }}
         run: npx electron-builder --win --x64 --publish always
