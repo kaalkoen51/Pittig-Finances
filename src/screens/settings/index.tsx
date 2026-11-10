@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { hasUserContent } from '../../domain/calc';
 import { demoData } from '../../domain/fixtures';
 import { emptyData } from '../../domain/migrate';
-import type { AppData, Category, Language } from '../../domain/types';
+import type { AppData, Category, Language, Theme } from '../../domain/types';
 import { useLang, useT } from '../../i18n';
 import { navigate } from '../../router';
 import { useActions, useAppStatus, useData, useStorage } from '../../state/store';
@@ -77,6 +77,18 @@ function GeneralSection() {
             options={[
               { value: 'nl', label: 'Nederlands' },
               { value: 'en', label: 'English' },
+            ]}
+          />
+        </Field>
+        <Field label={t('appearance')}>
+          <Segmented<Theme>
+            aria-label={t('appearance')}
+            value={data.settings.theme ?? 'system'}
+            onChange={(theme) => actions.updateSettings({ theme })}
+            options={[
+              { value: 'system', label: t('themeSystem') },
+              { value: 'light', label: t('themeLight') },
+              { value: 'dark', label: t('themeDark') },
             ]}
           />
         </Field>

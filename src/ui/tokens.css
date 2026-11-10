@@ -89,8 +89,9 @@
   --dur-fast: 160ms;
 }
 
+/* Dark palette: follows the system unless the user picked Light or Dark in Settings (data-theme). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #000000;
     --bg-elevated: #1c1c1e;
     --bg-fill: #2c2c2e;
@@ -126,6 +127,48 @@
     --shadow-card: none;
     --scrim: rgba(0, 0, 0, 0.55);
   }
+}
+:root[data-theme="dark"] {
+  --bg: #000000;
+  --bg-elevated: #1c1c1e;
+  --bg-fill: #2c2c2e;
+  --bg-fill-strong: #3a3a3c;
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --bg-pressed: rgba(255, 255, 255, 0.12);
+  --sidebar-bg: rgba(28, 28, 30, 0.85);
+  --label: #ffffff;
+  --label-2: #aeaeb2;
+  --label-3: #8e8e93;
+  --separator: rgba(84, 84, 88, 0.6);
+  --border: rgba(84, 84, 88, 0.8);
+
+  --accent: #ff8f84;
+  --accent-fill: #c23d30;
+  --accent-soft: rgba(255, 143, 132, 0.16);
+  --on-accent: #ffffff;
+  --success: #30d158;
+  --success-soft: rgba(48, 209, 88, 0.16);
+  --success-text: #30d158;
+  --warning: #ffb340;
+  --warning-soft: rgba(255, 179, 64, 0.16);
+  --warning-text: #ffb340;
+  --danger: #ff7aa5;
+  --danger-soft: rgba(255, 122, 165, 0.16);
+  --danger-text: #ff8fb3;
+  --neutral-soft: rgba(120, 120, 128, 0.32);
+  --neutral-text: #c7c7cc;
+
+  --focus: #4ca2ff;
+  --focus-ring: 0 0 0 3px rgba(76, 162, 255, 0.55);
+  --shadow-sheet: 0 10px 40px rgba(0, 0, 0, 0.6);
+  --shadow-card: none;
+  --scrim: rgba(0, 0, 0, 0.55);
+}
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
 }
 
 @media (prefers-reduced-motion: reduce) {

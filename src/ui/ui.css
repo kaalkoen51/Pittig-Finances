@@ -283,9 +283,12 @@
   font-weight: var(--weight-semibold);
 }
 @media (prefers-color-scheme: dark) {
-  .pf-seg__item.is-on {
+  :root:not([data-theme="light"]) .pf-seg__item.is-on {
     background: var(--bg-fill-strong);
   }
+}
+:root[data-theme="dark"] .pf-seg__item.is-on {
+  background: var(--bg-fill-strong);
 }
 
 .pf-chips {
@@ -979,9 +982,12 @@
   animation: pf-pop var(--dur) var(--ease);
 }
 @media (prefers-color-scheme: dark) {
-  .pf-toast {
+  :root:not([data-theme="light"]) .pf-toast {
     background: #3a3a3c;
   }
+}
+:root[data-theme="dark"] .pf-toast {
+  background: #3a3a3c;
 }
 .pf-toast--success svg {
   color: #30d158;
