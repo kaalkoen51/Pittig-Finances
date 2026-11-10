@@ -1,5 +1,6 @@
 // Bundles electron/main.ts and electron/preload.ts to CommonJS in dist-electron/.
-// Owned by the Electron agent (2d) from here on.
+// electron-updater is bundled into main.cjs so the packaged app needs no node_modules at all
+// (keeps the installer small; see electron-builder.yml `files`).
 import { build } from 'esbuild';
 
 const common = {
@@ -8,8 +9,9 @@ const common = {
   format: 'cjs',
   target: 'node22',
   sourcemap: true,
-  external: ['electron', 'electron-updater'],
+  external: ['electron'],
   logLevel: 'info',
+  define: { 'process.env.NODE_ENV': '"production"' },
 };
 
 await Promise.all([

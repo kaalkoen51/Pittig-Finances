@@ -19,10 +19,14 @@ const executablePath = findChromium();
 export default defineConfig({
   testDir: './e2e',
   timeout: 30_000,
-  retries: 0,
+  retries: process.env.CI ? 1 : 0,
+  forbidOnly: !!process.env.CI,
+  reporter: process.env.CI ? [['list'], ['html', { open: 'never' }]] : 'list',
   use: {
     baseURL: 'http://localhost:4173',
     trace: 'retain-on-failure',
+    // The PWA service worker would only add flakiness (caching, reloads) to these tests.
+    serviceWorkers: 'block',
     launchOptions: executablePath ? { executablePath } : {},
   },
   webServer: {

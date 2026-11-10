@@ -16,7 +16,10 @@
     "e2e": "playwright test",
     "build:electron": "node scripts/build-electron.mjs",
     "electron:dev": "npm run build:electron && concurrently -k -n vite,electron \"vite --port 5173 --strictPort\" \"wait-on tcp:5173 && electron . --dev-server-url=http://localhost:5173\"",
-    "dist:win": "npm run build && npm run build:electron && electron-builder --win --publish never"
+    "dist:win": "npm run build && npm run build:electron && electron-builder --win --x64 --publish never",
+    "dist:dir": "npm run build && npm run build:electron && electron-builder --win --x64 --dir --publish never",
+    "icons": "node scripts/make-icons.mjs",
+    "electron": "npm run build && npm run build:electron && electron ."
   },
   "dependencies": {
     "electron-updater": "^6.8.11",
