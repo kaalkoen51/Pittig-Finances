@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Product } from '../../domain/types';
-import { useT } from '../../i18n';
+import { autoPluralUnit, useFormat, useT } from '../../i18n';
 import { useActions, useData } from '../../state/store';
 import { Button, Field, Icon, MoneyInput, Sheet, TextInput, useConfirm, useToast } from '../../ui';
 import { isDuplicateProduct, productForm, productFromForm, type ProductFormState } from './batchLogic';
@@ -25,7 +25,11 @@ function ProductSheetInner({ onClose, product, onSaved }: ProductSheetProps) {
   const toast = useToast();
   const confirm = useConfirm();
   const defaultUnit = t('defaultUnit');
+  const lang = useFormat().lang;
   const [form, setForm] = useState<ProductFormState>(() => productForm(product, defaultUnit));
+  const [initial] = useState(form);
+  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
+  const autoPlural = autoPluralUnit(form.unit.trim() || defaultUnit, lang);
   const [submitted, setSubmitted] = useState(false);
   const set = (patch: Partial<ProductFormState>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -77,7 +81,7 @@ function ProductSheetInner({ onClose, product, onSaved }: ProductSheetProps) {
   ) : undefined;
 
   return (
-    <Sheet open onClose={onClose} title={product ? t('editProductTitle') : t('addProductTitle')} onSubmit={submit} footer={footer} className="batches-sheet">
+    <Sheet open onClose={onClose} title={product ? t('editProductTitle') : t('addProductTitle')} onSubmit={submit} footer={footer} className="batches-sheet" dirty={dirty}>
       <div className="pf-form-section">
         <Field label={tc('name')} error={nameError}>
           <TextInput value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder={t('namePlaceholder')} data-autofocus />
@@ -86,10 +90,13 @@ function ProductSheetInner({ onClose, product, onSaved }: ProductSheetProps) {
           <Field label={t('unit')} hint={t('unitHint')}>
             <TextInput value={form.unit} onChange={(e) => set({ unit: e.target.value })} placeholder={t('unitPlaceholder')} />
           </Field>
-          <Field label={t('defaultPrice')} hint={t('defaultPriceHint')} optionalLabel={tc('optional')}>
-            <MoneyInput value={form.defaultPrice} onChange={(defaultPrice) => set({ defaultPrice })} />
+          <Field label={t('unitPlural')} hint={t('unitPluralHint')} optionalLabel={tc('optional')}>
+            <TextInput value={form.unitPlural} onChange={(e) => set({ unitPlural: e.target.value })} placeholder={autoPlural} />
           </Field>
         </div>
+        <Field label={t('defaultPrice')} hint={t('defaultPriceHint')} optionalLabel={tc('optional')}>
+          <MoneyInput value={form.defaultPrice} onChange={(defaultPrice) => set({ defaultPrice })} />
+        </Field>
       </div>
     </Sheet>
   );

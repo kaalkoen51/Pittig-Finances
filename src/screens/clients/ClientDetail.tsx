@@ -165,12 +165,12 @@ export function ClientDetail({ id }: { id: string }) {
           {referenced && !client.archived && <p className="muted clients-p">{t('referencedNote')}</p>}
           <div className="pf-row-actions">
             {(referenced || client.archived) && (
-              <Button variant="secondary" icon={<Icon name="archive" size={16} />} onClick={onArchive}>
+              <Button variant="plain" size="sm" icon={<Icon name="archive" size={16} />} onClick={onArchive}>
                 {client.archived ? t('unarchiveClient') : t('archiveClient')}
               </Button>
             )}
             {!referenced && (
-              <Button variant="destructive" icon={<Icon name="trash" size={16} />} onClick={onDelete}>
+              <Button variant="plain" size="sm" className="clients-delete" icon={<Icon name="trash" size={16} />} onClick={onDelete}>
                 {t('deleteClient')}
               </Button>
             )}

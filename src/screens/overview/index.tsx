@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
 import { hasUserContent, isExpenseOverdue } from '../../domain/calc';
+import { demoData } from '../../domain/fixtures';
 import { periodRange } from '../../domain/dates';
 import type { PeriodKey } from '../../domain/types';
-import { useFormat, useT } from '../../i18n';
+import { plural, useFormat, useLang, useT } from '../../i18n';
 import { href, navigate } from '../../router';
-import { useData, useDerived } from '../../state/store';
-import { Amount, Badge, Button, Card, Icon, List, ListRow, PageHeader, Segmented, Stat } from '../../ui';
+import { useActions, useData, useDerived } from '../../state/store';
+import { Amount, Badge, Button, Card, Icon, List, ListRow, PageHeader, Segmented, Stat, useToast } from '../../ui';
 import { StatusBadge } from '../sales/StatusBadge';
-import { buildActivity, costSplit, type ActivityItem } from './activity';
+import { buildActivity, type ActivityItem } from './activity';
 import './overview.css';
 
 const PERIOD_KEY = 'pittig.overview.period';
@@ -26,7 +27,6 @@ function loadPeriod(): PeriodKey {
 export default function OverviewScreen() {
   const t = useT('overview');
   const tc = useT('common');
-  const f = useFormat();
   const data = useData();
   const derived = useDerived();
   const [period, setPeriodState] = useState<PeriodKey>(loadPeriod);
@@ -41,7 +41,6 @@ export default function OverviewScreen() {
 
   const range = useMemo(() => periodRange(period, derived.today), [period, derived.today]);
   const summary = useMemo(() => derived.period(range), [derived, range]);
-  const costs = useMemo(() => costSplit(data, range), [data, range]);
   const activity = useMemo(() => buildActivity(data, 8), [data]);
 
   const debtorCount = [...derived.clients.values()].filter((c) => c.outstanding > 0).length;
@@ -99,13 +98,10 @@ export default function OverviewScreen() {
             <Stat label={tc('result')} value={<Amount cents={summary.result} size="xl" tone="auto" />} hint={t('resultHint')} />
           </Card>
         </div>
-        {(costs.batch !== 0 || costs.general !== 0) && (
-          <p className="overview-note">{t('costsNote', { batch: f.money(costs.batch), general: f.money(costs.general) })}</p>
-        )}
 
         <div className="overview-balances">
           <a className="overview-balance" href={href('/clients')}>
-            <Stat label={tc('owedToYou')} value={<Amount cents={derived.owedToYou} size="lg" />} hint={debtorCount ? t('owedToYouHint', { count: debtorCount }) : t('owedToYouNone')} />
+            <Stat label={tc('owedToYou')} value={<Amount cents={derived.owedToYou} size="lg" />} hint={debtorCount ? plural(debtorCount, t('owedToYouHintOne'), t('owedToYouHint', { count: debtorCount })) : t('owedToYouNone')} />
             <Icon name="chevron-right" size={18} className="overview-balance__chevron" />
           </a>
           <a className="overview-balance" href={href('/suppliers')}>
@@ -115,7 +111,7 @@ export default function OverviewScreen() {
               hint={
                 unpaidBills ? (
                   <span className="overview-hint">
-                    {t('youOweHint', { count: unpaidBills })}
+                    {plural(unpaidBills, t('youOweHintOne'), t('youOweHint', { count: unpaidBills }))}
                     {overdueBills > 0 && <Badge tone="danger">{t('youOweOverdue', { count: overdueBills })}</Badge>}
                   </span>
                 ) : (
@@ -152,12 +148,8 @@ function ActivityRow({ item }: { item: ActivityItem }) {
           leading={<span className="overview-dot overview-dot--sale"><Icon name="sales" size={16} /></span>}
           title={name ?? t('activityWalkIn')}
           subtitle={name ? `${t('activitySale')} · ${date}` : date}
-          detail={
-            <>
-              <Amount cents={item.amount} />
-              {s.clientId && <StatusBadge info={derived.sales.get(s.id)} />}
-            </>
-          }
+          detail={<Amount cents={item.amount} />}
+          status={s.clientId ? <StatusBadge info={derived.sales.get(s.id)} /> : undefined}
         />
       );
     }
@@ -188,12 +180,8 @@ function ActivityRow({ item }: { item: ActivityItem }) {
           }
           title={e.description || cat?.name || tc('navExpenses')}
           subtitle={[date, sup ?? cat?.name].filter(Boolean).join(' · ')}
-          detail={
-            <>
-              <Amount cents={-e.amount} tone="neutral" signed />
-              {e.paidOn === null && <Badge tone="warning">{t('activityExpenseUnpaid')}</Badge>}
-            </>
-          }
+          detail={<Amount cents={-e.amount} tone="neutral" signed />}
+          status={e.paidOn === null ? <Badge tone="warning">{t('activityExpenseUnpaid')}</Badge> : undefined}
         />
       );
     }
@@ -202,11 +190,26 @@ function ActivityRow({ item }: { item: ActivityItem }) {
 
 function FirstRun() {
   const t = useT('overview');
+  const actions = useActions();
+  const toast = useToast();
+  const lang = useLang();
+  const [loading, setLoading] = useState(false);
   const steps = [
-    { n: 1, title: t('step1Title'), text: t('step1Text'), action: t('step1Action'), to: '/batches' },
-    { n: 2, title: t('step2Title'), text: t('step2Text'), action: t('addSale'), to: '/sales?new=1' },
-    { n: 3, title: t('step3Title'), text: t('step3Text'), action: t('addExpense'), to: '/expenses?new=1' },
+    { n: 1, title: t('step1Title'), text: t('step1Text'), action: t('addSale'), to: '/sales?new=1', optional: false },
+    { n: 2, title: t('step2Title'), text: t('step2Text'), action: t('addExpense'), to: '/expenses?new=1', optional: false },
+    { n: 3, title: t('step3Title'), text: t('step3Text'), action: t('step3Action'), to: '/batches', optional: true },
   ];
+  const tryDemo = async () => {
+    setLoading(true);
+    try {
+      const demo = demoData();
+      await actions.replaceAll({ ...demo, settings: { ...demo.settings, language: lang } });
+      toast.show(t('demoLoaded'), { tone: 'success' });
+    } catch (e) {
+      setLoading(false);
+      toast.show(t('demoFailed', { error: e instanceof Error ? e.message : String(e) }), { tone: 'danger' });
+    }
+  };
   return (
     <div className="overview-welcome">
       <div className="overview-welcome__intro">
@@ -220,15 +223,23 @@ function FirstRun() {
               {s.n}
             </span>
             <div className="overview-step__body">
-              <h3>{s.title}</h3>
+              <h3>
+                {s.title}
+                {s.optional && <span className="overview-step__optional"> ({t('stepOptional')})</span>}
+              </h3>
               <p className="muted">{s.text}</p>
             </div>
-            <Button variant={s.n === 1 ? 'primary' : 'secondary'} onClick={() => navigate(s.to)}>
+            <Button variant={s.n === 1 ? 'primary' : 'secondary'} icon={s.optional ? undefined : <Icon name="plus" size={18} />} onClick={() => navigate(s.to)}>
               {s.action}
             </Button>
           </li>
         ))}
       </ol>
+      <List header={t('otherWays')}>
+        <ListRow leading={<Icon name="refresh" size={20} className="overview-way" />} title={t('tryDemo')} subtitle={t('tryDemoHint')} onClick={loading ? undefined : tryDemo} />
+        <ListRow leading={<Icon name="import" size={20} className="overview-way" />} title={t('importStatement')} subtitle={t('importStatementHint')} href={href('/import?wizard=1')} />
+        <ListRow leading={<Icon name="upload" size={20} className="overview-way" />} title={t('importExcel')} subtitle={t('importExcelHint')} href={href('/import?wizard=1')} />
+      </List>
     </div>
   );
 }

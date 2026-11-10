@@ -25,10 +25,12 @@ export function CategorySheet({ category, onClose, count }: CategorySheetProps) 
   const [name, setName] = useState('');
   const [color, setColor] = useState(CATEGORY_COLORS[0]!);
   const [error, setError] = useState<string | undefined>();
+  const [dirty, setDirty] = useState(false);
 
   useEffect(() => {
     if (category === null) return;
     setError(undefined);
+    setDirty(false);
     if (category === 'new') {
       setName('');
       setColor(CATEGORY_COLORS[count % CATEGORY_COLORS.length]!);
@@ -98,7 +100,7 @@ export function CategorySheet({ category, onClose, count }: CategorySheetProps) 
   ) : undefined;
 
   return (
-    <Sheet open={category !== null} onClose={onClose} title={isNew ? t('newCategory') : t('editCategory')} onSubmit={save} footer={footer}>
+    <Sheet open={category !== null} onClose={onClose} title={isNew ? t('newCategory') : t('editCategory')} onSubmit={save} footer={footer} dirty={dirty}>
       <div className="pf-form-section">
         <Field label={t('categoryName')} error={error} hint={referenced ? t('categoryInUse') : undefined}>
           <TextInput
@@ -106,6 +108,7 @@ export function CategorySheet({ category, onClose, count }: CategorySheetProps) 
             onChange={(e) => {
               setName(e.target.value);
               setError(undefined);
+              setDirty(true);
             }}
             data-autofocus
             maxLength={60}
@@ -122,10 +125,16 @@ export function CategorySheet({ category, onClose, count }: CategorySheetProps) 
                 aria-label={c}
                 className={'settings-swatch' + (color.toLowerCase() === c.toLowerCase() ? ' is-selected' : '')}
                 style={{ background: c }}
-                onClick={() => setColor(c)}
+                onClick={() => {
+                  setColor(c);
+                  setDirty(true);
+                }}
               />
             ))}
-            <input type="color" className="settings-color-input" value={/^#[0-9a-f]{6}$/i.test(color) ? color : '#8e8e93'} onChange={(e) => setColor(e.target.value.toUpperCase())} aria-label={t('categoryColor')} />
+            <input type="color" className="settings-color-input" value={/^#[0-9a-f]{6}$/i.test(color) ? color : '#8e8e93'} onChange={(e) => {
+              setColor(e.target.value.toUpperCase());
+              setDirty(true);
+            }} aria-label={t('categoryColor')} />
           </div>
         </Field>
       </div>

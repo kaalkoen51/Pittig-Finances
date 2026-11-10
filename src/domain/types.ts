@@ -41,6 +41,8 @@ export interface Product {
   name: string;
   /** Unit label shown next to quantities, e.g. "pot", "fles", "jar". */
   unit: string;
+  /** Plural of `unit` ("flessen"). Omitted = guessed from `unit` (see i18n/define autoPluralUnit). */
+  unitPlural?: string;
   /** Default sale price per unit, in cents. */
   defaultPrice: Cents;
   archived: boolean;

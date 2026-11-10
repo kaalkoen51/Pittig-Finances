@@ -1,5 +1,6 @@
 import { createContext, forwardRef, useContext, useId, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
 import { cx } from './cx';
+import { Icon } from './Icon';
 
 interface FieldCtx {
   id: string;
@@ -98,13 +99,18 @@ export interface SelectProps extends Omit<SelectHTMLAttributes<HTMLSelectElement
 export const Select = forwardRef<HTMLSelectElement, SelectProps>(function Select({ className, id, value, onChange, options, placeholder, ...rest }, ref) {
   const f = useFieldProps(id);
   return (
-    <select ref={ref} className={cx('pf-input', 'pf-select', className)} value={value} onChange={(e) => onChange(e.target.value)} {...f} {...rest}>
-      {placeholder !== undefined && <option value="">{placeholder}</option>}
-      {options.map((o) => (
-        <option key={o.value} value={o.value} disabled={o.disabled}>
-          {o.label}
-        </option>
-      ))}
-    </select>
+    <span className="pf-select-wrap">
+      <select ref={ref} className={cx('pf-input', 'pf-select', className)} value={value} onChange={(e) => onChange(e.target.value)} {...f} {...rest}>
+        {placeholder !== undefined && <option value="">{placeholder}</option>}
+        {options.map((o) => (
+          <option key={o.value} value={o.value} disabled={o.disabled}>
+            {o.label}
+          </option>
+        ))}
+      </select>
+      <span className="pf-combo__chevron" aria-hidden="true">
+        <Icon name="chevron-down" size={16} />
+      </span>
+    </span>
   );
 });

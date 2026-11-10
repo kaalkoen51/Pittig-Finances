@@ -15,7 +15,7 @@ export const nl = {
   filterOpen: 'Open',
   filterPaid: 'Betaald',
   monthTotal: '{count} verkopen · {amount}',
-  clientPlaceholder: 'Losse verkoop / markt',
+  clientPlaceholder: 'Losse verkoop',
   clientHint: 'Leeg laten voor een losse verkoop (markt, winkel).',
   clientOpenBalance: '{name} heeft nog {amount} openstaan.',
   clientNoBalance: '{name} heeft niets openstaan.',

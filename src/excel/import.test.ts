@@ -4,7 +4,7 @@ import { emptyData } from '../domain/migrate';
 import type { AppData, ImportRow } from '../domain/types';
 import { buildClientStatement, buildWorkbook, clientStatementLines, exportClientStatement, exportFileName, workbookBytes } from './export';
 import { buildImportRows, findEntitySheets, normalizeSource, planEntityImport } from './import';
-import { exactNameMatch, expenseFromRow, linkRow, matchSuggestions, paymentFromRow, reopenRow } from './match';
+import { exactNameMatch, fuzzyNameMatch, namesAlike, expenseFromRow, linkRow, matchSuggestions, paymentFromRow, reopenRow } from './match';
 import { parseAmountCell, parseDateCell, readWorkbook, type ParsedRow } from './parse';
 
 const REF = '2026-03-31';
@@ -214,6 +214,23 @@ describe('match suggestions', () => {
     const s = matchSuggestions(base(), ir(-4000, '2026-03-10'));
     expect(s.map((x) => x.item.id)).toEqual(['e1', 'e2']);
     expect(s[0]!.collection).toBe('expenses');
+  });
+
+  it('suggests an unpaid bill with the same amount dated weeks earlier, supplier name match first (UX review #2)', () => {
+    const d = base();
+    d.suppliers = [{ id: 's1', name: 'Verpakking Direct', archived: false }];
+    d.expenses.push(
+      { id: 'e3', date: '2026-10-20', categoryId: d.categories[0]!.id, description: 'Losse bon', amount: 12000, paidOn: '2026-11-03' },
+      { id: 'e4', date: '2026-10-20', categoryId: d.categories[0]!.id, supplierId: 's1', description: '150 potten', amount: 12000, paidOn: null },
+      { id: 'e5', date: '2026-05-01', categoryId: d.categories[0]!.id, description: 'Te oud', amount: 12000, paidOn: null },
+    );
+    const row: ImportRow = { ...ir(-12000, '2026-11-03'), counterparty: 'Verpakking Direct BV' };
+    const s = matchSuggestions(d, row);
+    expect(s.map((x) => x.item.id)).toEqual(['e4', 'e3']);
+    expect(s[0]).toMatchObject({ unpaid: true, nameMatch: true });
+    expect(fuzzyNameMatch(d.suppliers, 'Verpakking Direct BV')).toBe('s1');
+    expect(fuzzyNameMatch(d.suppliers, 'Drukkerij Direct')).toBeUndefined();
+    expect(namesAlike('Toko Sari', 'TOKO SARI B.V.')).toBe(true);
   });
 
   it('finds exact counterparty names only', () => {

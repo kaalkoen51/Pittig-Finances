@@ -20,6 +20,8 @@ import * as sales from './sales';
 import * as settings from './settings';
 import * as suppliers from './suppliers';
 
+export { plural, autoPluralUnit, unitFor } from './define';
+
 export const AREAS = {
   common,
   overview,
@@ -75,7 +77,8 @@ export function useFormat(): Formatter {
     () => ({
       lang,
       money: (c, o) => formatMoney(c, lang, o),
-      date: (d, style = 'medium') => formatDate(d, lang, style),
+      // One date look in the whole UI: "9 nov 2026". ('short' = numeric, kept for exports only.)
+      date: (d, style = 'medium') => formatDate(d, lang, style === 'short' ? 'medium' : style),
       month: (k) => formatMonth(k, lang),
     }),
     [lang],

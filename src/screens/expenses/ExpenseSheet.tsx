@@ -59,6 +59,8 @@ function ExpenseSheetInner({ onClose, expense, defaults, title, onSaved, today: 
     const supplierId = defaults?.supplierId ?? supplierForCategory(data.expenses, categoryId);
     return newExpenseForm(today, { ...defaults, categoryId, supplierId });
   });
+  const [initial] = useState(form);
+  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
   const [submitted, setSubmitted] = useState(false);
   const supplierTouched = useRef(!!expense || !!defaults?.supplierId);
   const dueTouched = useRef(!!expense?.dueDate);
@@ -161,6 +163,7 @@ function ExpenseSheetInner({ onClose, expense, defaults, title, onSaved, today: 
       onClose={onClose}
       title={title ?? (expense ? t('editTitle') : t('addTitle'))}
       onSubmit={submit}
+      dirty={dirty}
       className="expenses-sheet"
       footer={
         expense ? (
@@ -275,17 +278,22 @@ function BatchSelect({
 }) {
   const f = useFieldProps();
   return (
-    <select className="pf-input pf-select" value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)} {...f}>
-      <option value="">{generalLabel}</option>
-      {groups.map((g) => (
-        <optgroup key={g.productId} label={g.label}>
-          {g.options.map((o) => (
-            <option key={o.value} value={o.value}>
-              {o.label}
-            </option>
-          ))}
-        </optgroup>
-      ))}
-    </select>
+    <span className="pf-select-wrap">
+      <select className="pf-input pf-select" value={value ?? ''} onChange={(e) => onChange(e.target.value || undefined)} {...f}>
+        <option value="">{generalLabel}</option>
+        {groups.map((g) => (
+          <optgroup key={g.productId} label={g.label}>
+            {g.options.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label}
+              </option>
+            ))}
+          </optgroup>
+        ))}
+      </select>
+      <span className="pf-combo__chevron" aria-hidden="true">
+        <Icon name="chevron-down" size={16} />
+      </span>
+    </span>
   );
 }

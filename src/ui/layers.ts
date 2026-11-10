@@ -9,14 +9,21 @@ const stack: symbol[] = [];
 export function pushLayer(): symbol {
   const id = Symbol('layer');
   stack.push(id);
-  if (stack.length === 1) document.body.style.overflow = 'hidden';
+  if (stack.length === 1) {
+    document.body.style.overflow = 'hidden';
+    // The app behind a sheet/dialog is unreachable for keyboard and screen readers.
+    document.getElementById('root')?.setAttribute('inert', '');
+  }
   return id;
 }
 
 export function popLayer(id: symbol): void {
   const i = stack.indexOf(id);
   if (i >= 0) stack.splice(i, 1);
-  if (stack.length === 0) document.body.style.overflow = '';
+  if (stack.length === 0) {
+    document.body.style.overflow = '';
+    document.getElementById('root')?.removeAttribute('inert');
+  }
 }
 
 export function isTopLayer(id: symbol): boolean {

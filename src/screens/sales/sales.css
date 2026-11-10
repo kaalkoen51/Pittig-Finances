@@ -78,6 +78,11 @@
   margin-left: auto;
   font-weight: var(--weight-semibold);
 }
+.sales-line__row {
+  grid-template-columns: repeat(auto-fit, minmax(96px, 1fr));
+  gap: var(--s-1) 12px;
+  align-items: start;
+}
 .sales-note {
   margin: 0;
   font-size: var(--text-sm);

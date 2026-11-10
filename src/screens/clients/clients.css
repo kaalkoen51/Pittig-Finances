@@ -65,3 +65,7 @@
 .clients-form > .pf-form-row .pf-field + .pf-field {
   margin-top: 0;
 }
+
+.clients-delete {
+  color: var(--danger);
+}

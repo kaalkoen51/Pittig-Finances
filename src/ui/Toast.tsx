@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { cx } from './cx';
 import { Icon } from './Icon';
 
@@ -49,6 +50,8 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastCtx.Provider value={{ show }}>
       {children}
+      {/* Portalled to <body> so toasts stay usable while a sheet makes the app inert. */}
+      {createPortal(
       <div className="pf-toasts" role="status" aria-live="polite">
         {items.map((t) => (
           <div key={t.id} className={cx('pf-toast', t.tone && `pf-toast--${t.tone}`)}>
@@ -69,7 +72,9 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             )}
           </div>
         ))}
-      </div>
+      </div>,
+      document.body,
+      )}
     </ToastCtx.Provider>
   );
 }

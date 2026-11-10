@@ -1,5 +1,6 @@
 import { forwardRef, type InputHTMLAttributes } from 'react';
 import { isISODate } from '../domain/dates';
+import { useFormat } from '../i18n';
 import type { ISODate } from '../domain/types';
 import { cx } from './cx';
 import { useFieldProps } from './Field';
@@ -11,10 +12,15 @@ export interface DateFieldProps extends Omit<InputHTMLAttributes<HTMLInputElemen
   onChange: (value: ISODate | undefined) => void;
 }
 
-/** Native date picker (locale-formatted by the OS), value in ISO format. */
+/**
+ * Native date picker, value in ISO format. The browser formats the field by its own locale
+ * (possibly mm/dd/yyyy), so the chosen date is repeated underneath in words ("dinsdag 10 november 2026").
+ */
 export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(function DateField({ value, onChange, className, id, ...rest }, ref) {
   const f = useFieldProps(id);
+  const fmt = useFormat();
   return (
+    <>
     <input
       ref={ref}
       type="date"
@@ -28,5 +34,7 @@ export const DateField = forwardRef<HTMLInputElement, DateFieldProps>(function D
       {...f}
       {...rest}
     />
+    {value && isISODate(value) && <span className="pf-date__words">{fmt.date(value, 'long')}</span>}
+    </>
   );
 });

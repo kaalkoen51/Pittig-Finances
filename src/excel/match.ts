@@ -7,12 +7,21 @@ import { newId } from '../domain/ids';
 import { normalizeDescription } from '../domain/importing';
 import type { AppData, Expense, Id, ImportRow, Payment } from '../domain/types';
 
-export type Suggestion = { collection: 'payments'; item: Payment; days: number } | { collection: 'expenses'; item: Expense; days: number };
+export type Suggestion =
+  | { collection: 'payments'; item: Payment; days: number; nameMatch?: boolean }
+  /** `unpaid`: an open bill – matching it marks it paid on the bank date. */
+  | { collection: 'expenses'; item: Expense; days: number; nameMatch?: boolean; unpaid?: boolean };
+
+/** How long before the bank date an unpaid bill may be dated to still be suggested. */
+export const UNPAID_BILL_WINDOW_DAYS = 120;
 
 /**
- * Existing payments (money in) or expenses (money out) that could be this bank row:
- * same absolute amount, date within ±7 days, and not already linked to another import row.
- * Closest date first.
+ * Existing payments (money in) or expenses (money out) that could be this bank row and are not
+ * already linked to another import row:
+ * - booked payments / paid expenses: same absolute amount, date within ±7 days;
+ * - unpaid bills (money out only): same amount, dated up to 120 days before the bank date
+ *   (a bill is usually paid weeks after its date).
+ * Order: counterparty name matches the supplier/client first, then closest date.
  */
 export function matchSuggestions(data: AppData, row: ImportRow, windowDays = 7): Suggestion[] {
   const linked = new Set(data.importRows.filter((r) => r.id !== row.id && r.linkedId).map((r) => r.linkedId));
@@ -20,20 +29,66 @@ export function matchSuggestions(data: AppData, row: ImportRow, windowDays = 7):
   const from = addDays(row.date, -windowDays);
   const to = addDays(row.date, windowDays);
   const near = (d: string) => d >= from && d <= to;
+  const billFrom = addDays(row.date, -UNPAID_BILL_WINDOW_DAYS);
   const out: Suggestion[] = [];
   if (row.amount >= 0) {
+    const clientName = new Map(data.clients.map((c) => [c.id, c.name]));
     for (const p of data.payments) {
-      if (Math.abs(p.amount) === abs && near(p.date) && !linked.has(p.id)) out.push({ collection: 'payments', item: p, days: Math.abs(daysBetween(row.date, p.date)) });
-    }
-  } else {
-    for (const e of data.expenses) {
-      const d = e.paidOn ?? e.date;
-      if (Math.abs(e.amount) === abs && (near(d) || near(e.date)) && !linked.has(e.id)) {
-        out.push({ collection: 'expenses', item: e, days: Math.min(Math.abs(daysBetween(row.date, d)), Math.abs(daysBetween(row.date, e.date))) });
+      if (Math.abs(p.amount) === abs && near(p.date) && !linked.has(p.id)) {
+        out.push({ collection: 'payments', item: p, days: Math.abs(daysBetween(row.date, p.date)), ...(namesAlike(clientName.get(p.clientId), row.counterparty) ? { nameMatch: true } : {}) });
       }
     }
+  } else {
+    const supplierName = new Map(data.suppliers.map((s) => [s.id, s.name]));
+    for (const e of data.expenses) {
+      if (Math.abs(e.amount) !== abs || linked.has(e.id)) continue;
+      const d = e.paidOn ?? e.date;
+      const unpaid = e.paidOn === null && e.amount > 0;
+      const inWindow = near(d) || near(e.date) || (unpaid && e.date >= billFrom && e.date <= to);
+      if (!inWindow) continue;
+      const nameMatch = namesAlike(e.supplierId ? supplierName.get(e.supplierId) : undefined, row.counterparty);
+      out.push({
+        collection: 'expenses',
+        item: e,
+        days: Math.min(Math.abs(daysBetween(row.date, d)), Math.abs(daysBetween(row.date, e.date))),
+        ...(nameMatch ? { nameMatch: true } : {}),
+        ...(unpaid ? { unpaid: true } : {}),
+      });
+    }
   }
-  return out.sort((a, b) => a.days - b.days);
+  const rank = (s: Suggestion) => (s.nameMatch ? 0 : 1);
+  return out.sort((a, b) => rank(a) - rank(b) || a.days - b.days);
+}
+
+/** Name for comparing: normalized, punctuation dropped, legal forms (BV, VOF, NV…) removed. */
+export function nameKey(name: string | undefined): string {
+  if (!name) return '';
+  return normalizeDescription(name)
+    .replace(/\b(b\.?v\.?|n\.?v\.?|v\.?o\.?f\.?|c\.?v\.?|holding|eenmanszaak|ltd|gmbh|inc)\b\.?/g, ' ')
+    .replace(/[^a-z0-9 ]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/** "Verpakking Direct BV" ≈ "Verpakking Direct"; "Toko Sari Utrecht" ≈ "Toko Sari". */
+export function namesAlike(a: string | undefined, b: string | undefined): boolean {
+  const x = nameKey(a);
+  const y = nameKey(b);
+  if (!x || !y) return false;
+  if (x === y) return true;
+  const [short, long] = x.length <= y.length ? [x, y] : [y, x];
+  return short.length >= 4 && ` ${long} `.includes(` ${short} `);
+}
+
+/**
+ * Client/supplier that is probably the bank counterparty: exact name first, otherwise the only
+ * one whose name is alike (ignoring "BV", punctuation, extra words). Just a prefill the user sees.
+ */
+export function fuzzyNameMatch<T extends { id: Id; name: string; archived: boolean }>(list: readonly T[], counterparty: string | undefined): Id | undefined {
+  const exact = exactNameMatch(list, counterparty);
+  if (exact) return exact;
+  const alike = list.filter((x) => !x.archived && namesAlike(x.name, counterparty));
+  return alike.length === 1 ? alike[0]!.id : undefined;
 }
 
 /** Id of the client/supplier whose name exactly equals the bank counterparty (case/accents-insensitive). */

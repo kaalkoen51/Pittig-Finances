@@ -28,7 +28,7 @@ export default function ImportScreen() {
         title={t('title')}
         subtitle={todo.length ? t('todoCount', { count: todo.length }) : undefined}
         action={
-          <Button variant="secondary" icon={<Icon name="upload" size={18} />} onClick={() => setWizard(true)}>
+          todo.length === 0 ? undefined : <Button variant="secondary" icon={<Icon name="upload" size={18} />} onClick={() => setWizard(true)}>
             {t('importButton')}
           </Button>
         }

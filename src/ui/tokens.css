@@ -58,19 +58,27 @@
   --separator: rgba(60, 60, 67, 0.18);
   --border: rgba(60, 60, 67, 0.24);
 
-  --accent: #c4352a; /* chili – text/icons on light bg (5.4:1 on white) */
-  --accent-fill: #c4352a; /* primary button background */
-  --accent-soft: rgba(196, 53, 42, 0.1);
+  /* Chili is the brand colour. Text on a tint stays >= 4.5:1 (AA) on white and on --bg. */
+  --accent: #a82e25; /* text/icons/links (6.8:1 on white, 5.2:1 on tint over --bg) */
+  --accent-fill: #b5372b; /* primary button background (6.1:1 with white) */
+  --accent-soft: rgba(168, 46, 37, 0.09);
   --on-accent: #ffffff;
   --success: #1a7f37; /* money in */
   --success-soft: rgba(26, 127, 55, 0.12);
+  --success-text: #156b2e; /* on --success-soft */
   --warning: #a35a00;
   --warning-soft: rgba(214, 133, 0, 0.14);
-  --danger: #d70015;
-  --danger-soft: rgba(215, 0, 21, 0.1);
+  --warning-text: #8a4a00;
+  /* Danger is a magenta-red, clearly different from the chili brand colour. */
+  --danger: #b8174f;
+  --danger-soft: rgba(184, 23, 79, 0.1);
+  --danger-text: #a3123f;
   --neutral-soft: rgba(120, 120, 128, 0.14);
+  --neutral-text: #545459;
 
-  --focus-ring: 0 0 0 3px rgba(196, 53, 42, 0.35);
+  /* Focus is neutral system blue, so it never reads as an error or as "selected". */
+  --focus: #0a6cdf;
+  --focus-ring: 0 0 0 3px rgba(10, 108, 223, 0.35);
   --shadow-sheet: 0 10px 40px rgba(0, 0, 0, 0.18), 0 2px 8px rgba(0, 0, 0, 0.08);
   --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.04);
   --scrim: rgba(0, 0, 0, 0.32);
@@ -96,19 +104,24 @@
     --separator: rgba(84, 84, 88, 0.6);
     --border: rgba(84, 84, 88, 0.8);
 
-    --accent: #ff7a6b;
-    --accent-fill: #c93c2f;
-    --accent-soft: rgba(255, 122, 107, 0.16);
+    --accent: #ff8f84;
+    --accent-fill: #c23d30;
+    --accent-soft: rgba(255, 143, 132, 0.16);
     --on-accent: #ffffff;
     --success: #30d158;
     --success-soft: rgba(48, 209, 88, 0.16);
+    --success-text: #30d158;
     --warning: #ffb340;
     --warning-soft: rgba(255, 179, 64, 0.16);
-    --danger: #ff6961;
-    --danger-soft: rgba(255, 105, 97, 0.16);
+    --warning-text: #ffb340;
+    --danger: #ff7aa5;
+    --danger-soft: rgba(255, 122, 165, 0.16);
+    --danger-text: #ff8fb3;
     --neutral-soft: rgba(120, 120, 128, 0.32);
+    --neutral-text: #c7c7cc;
 
-    --focus-ring: 0 0 0 3px rgba(255, 122, 107, 0.45);
+    --focus: #4ca2ff;
+    --focus-ring: 0 0 0 3px rgba(76, 162, 255, 0.55);
     --shadow-sheet: 0 10px 40px rgba(0, 0, 0, 0.6);
     --shadow-card: none;
     --scrim: rgba(0, 0, 0, 0.55);

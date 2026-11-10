@@ -77,6 +77,9 @@ export default function ExpensesScreen() {
                   { value: 'unpaid', label: unpaidCount ? `${t('filterUnpaid')} · ${unpaidCount}` : t('filterUnpaid') },
                 ]}
               />
+              <Button size="sm" variant="plain" icon={<Icon name="upload" size={16} />} onClick={() => navigate('/import?wizard=1')} className="expenses-toolbar__import">
+                {t('importStatement')}
+              </Button>
             </div>
             {categoryChips.length > 1 && (
               <Chips aria-label={t('categoryFilterLabel')} options={categoryChips} value={categoryId} onChange={setCategoryId} allowDeselect className="expenses-toolbar__chips" />
@@ -91,9 +94,14 @@ export default function ExpensesScreen() {
           title={t('emptyTitle')}
           message={t('emptyMessage')}
           action={
-            <Button variant="primary" icon={<Icon name="plus" />} onClick={() => setSheet({ mode: 'new' })}>
-              {t('emptyAction')}
-            </Button>
+            <div className="expenses-empty-actions">
+              <Button variant="primary" icon={<Icon name="plus" />} onClick={() => setSheet({ mode: 'new' })}>
+                {t('emptyAction')}
+              </Button>
+              <Button variant="plain" icon={<Icon name="upload" size={16} />} onClick={() => navigate('/import?wizard=1')}>
+                {t('importStatement')}
+              </Button>
+            </div>
           }
         />
       ) : groups.length === 0 ? (
@@ -139,23 +147,17 @@ export default function ExpensesScreen() {
                     onClick={() => setSheet({ mode: 'edit', expense: e })}
                     leading={<span className="expenses-dot" style={{ background: cat?.color ?? 'var(--label-3)' }} aria-hidden="true" />}
                     title={e.description || cat?.name || '—'}
-                    subtitle={
-                      <>
-                        {sub}
-                        {batch && <span className="expenses-batch-tag">{batch.code}</span>}
-                      </>
-                    }
-                    detail={
-                      <span className="expenses-detail">
-                        <Amount cents={e.amount} tone={e.amount < 0 ? 'in' : 'out'} />
-                        {status === 'overdue' ? (
-                          <Badge tone="danger">{tc('overdue')}</Badge>
-                        ) : status === 'unpaid' ? (
-                          <Badge tone="warning">{t('unpaid')}</Badge>
-                        ) : e.amount < 0 ? (
-                          <Badge tone="success">{t('refundBadge')}</Badge>
-                        ) : null}
-                      </span>
+                    subtitle={sub}
+                    tag={batch && <span className="expenses-batch-tag">{batch.code}</span>}
+                    detail={<Amount cents={e.amount} tone={e.amount < 0 ? 'in' : 'out'} />}
+                    status={
+                      status === 'overdue' ? (
+                        <Badge tone="danger">{tc('overdue')}</Badge>
+                      ) : status === 'unpaid' ? (
+                        <Badge tone="warning">{t('unpaid')}</Badge>
+                      ) : e.amount < 0 ? (
+                        <Badge tone="success">{t('refundBadge')}</Badge>
+                      ) : undefined
                     }
                   />
                 );

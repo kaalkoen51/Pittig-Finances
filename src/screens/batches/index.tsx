@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { lineTotal } from '../../domain/calc';
 import type { Batch, BatchStats, Expense, Id, Product } from '../../domain/types';
-import { useFormat, useT } from '../../i18n';
+import { unitFor, useFormat, useT } from '../../i18n';
 import { href, navigate, useMatch, useRoute } from '../../router';
 import { useActions, useData, useDerived } from '../../state/store';
 import { Amount, Badge, Button, Card, EmptyState, Icon, List, ListRow, PageHeader, Stat, useToast } from '../../ui';
@@ -51,7 +51,7 @@ function BatchOverview() {
     <>
       <PageHeader
         title={t('title')}
-        subtitle={t('subtitle')}
+        subtitle={<span className="batches-subtitle">{t('subtitle')}</span>}
         action={
           active.length > 0 ? (
             <Button variant="primary" icon={<Icon name="plus" />} onClick={() => setBatchSheet({})}>
@@ -59,15 +59,7 @@ function BatchOverview() {
             </Button>
           ) : undefined
         }
-      >
-        {products.length > 0 && (
-          <div className="pf-row-actions">
-            <Button size="sm" icon={<Icon name="plus" />} onClick={() => setProductSheet({})}>
-              {t('addProduct')}
-            </Button>
-          </div>
-        )}
-      </PageHeader>
+      />
 
       {products.length === 0 ? (
         <EmptyState
@@ -98,19 +90,19 @@ function BatchOverview() {
                       {batches.length > 0 && <> · {batches.length === 1 ? t('productTotalsOne', totalsVars) : t('productTotals', totalsVars)}</>}
                     </p>
                   </div>
-                  <div className="pf-row-actions">
-                    <Button size="sm" variant="plain" icon={<Icon name="edit" size={16} />} onClick={() => setProductSheet({ product: p })}>
-                      {tc('edit')}
-                    </Button>
+                  <Button size="sm" variant="plain" icon={<Icon name="edit" size={16} />} onClick={() => setProductSheet({ product: p })} aria-label={`${tc('edit')}: ${p.name}`}>
+                    {tc('edit')}
+                  </Button>
+                </header>
+                {batches.length === 0 ? (
+                  <div className="batches-none">
+                    <p className="muted">{t('noBatches')}</p>
                     {!p.archived && (
                       <Button size="sm" variant="plain" icon={<Icon name="plus" size={16} />} onClick={() => setBatchSheet({ productId: p.id })}>
                         {t('addBatchFor')}
                       </Button>
                     )}
                   </div>
-                </header>
-                {batches.length === 0 ? (
-                  <p className="muted batches-none">{t('noBatches')}</p>
                 ) : (
                   <div className="batches-grid">
                     {batches.map((b) => (
@@ -122,13 +114,16 @@ function BatchOverview() {
             );
           })}
 
-          {archived.length > 0 && (
-            <div>
+          <div className="pf-row-actions batches-endactions">
+            <Button icon={<Icon name="plus" />} onClick={() => setProductSheet({})}>
+              {t('addProductLong')}
+            </Button>
+            {archived.length > 0 && (
               <Button variant="plain" size="sm" onClick={() => setShowArchived((v) => !v)}>
                 {showArchived ? t('hideArchivedProducts') : t('showArchivedProducts', { count: archived.length })}
               </Button>
-            </div>
-          )}
+            )}
+          </div>
 
           <Card title={t('generalCostsTitle')} action={<a href={href('/expenses')} className="batches-link">{t('viewExpenses')}</a>}>
             <div className="pf-stack">
@@ -156,6 +151,8 @@ function BatchCard({ batch, product, stats }: { batch: Batch; product: Product; 
   const tc = useT('common');
   const f = useFormat();
   const s = stats;
+  const sold = s?.unitsSold ?? 0;
+  const left = s?.unitsLeft ?? batch.quantity;
   return (
     <a href={href('/batches/' + batch.id)} className={`batches-card${batch.closed ? ' batches-card--closed' : ''}`}>
       <div className="batches-card__head">
@@ -167,9 +164,9 @@ function BatchCard({ batch, product, stats }: { batch: Batch; product: Product; 
         {t('produced')} {f.date(batch.producedOn, 'medium')}
       </div>
       <dl className="batches-stats">
-        <BatchStatItem label={tc('quantity')} value={`${batch.quantity} ${product.unit}`} />
-        <BatchStatItem label={t('unitsSold')} value={String(s?.unitsSold ?? 0)} />
-        <BatchStatItem label={t('unitsLeft')} value={String(s?.unitsLeft ?? batch.quantity)} warn={(s?.unitsLeft ?? 0) < 0} />
+        <BatchStatItem label={tc('quantity')} value={`${batch.quantity} ${unitFor(product, batch.quantity, f.lang)}`} />
+        <BatchStatItem label={t('unitsSold')} value={String(sold)} />
+        <BatchStatItem label={t('unitsLeft')} value={String(left)} warn={left < 0} />
         <BatchStatItem label={t('costs')} value={<Amount cents={s?.costs ?? 0} size="sm" />} />
         <BatchStatItem label={t('revenue')} value={<Amount cents={s?.revenue ?? 0} size="sm" />} />
         <BatchStatItem label={tc('profit')} value={<Amount cents={s?.profit ?? 0} size="sm" tone="auto" />} />
@@ -218,7 +215,7 @@ function BatchDetail({ id }: { id: Id }) {
     );
   }
 
-  const unit = product?.unit ?? '';
+  const unit = product ? unitFor(product, batch.quantity, f.lang) : '';
   const toggleClosed = () => {
     actions.archive('batches', batch.id, !batch.closed);
     toast.show(batch.closed ? t('reopenedToast') : t('closedToast'));

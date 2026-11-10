@@ -9,7 +9,7 @@ export const nl = {
   navClients: 'Klanten',
   navExpenses: 'Uitgaven',
   navBatches: 'Batches',
-  navSuppliers: 'Wie ik betaal',
+  navSuppliers: 'Te betalen',
   navImport: 'Te sorteren',
   navSettings: 'Instellingen',
   navMore: 'Meer',
@@ -62,7 +62,7 @@ export const nl = {
   methodOther: 'Anders',
   optional: 'optioneel',
   none: 'Geen',
-  walkIn: 'Losse verkoop / markt',
+  walkIn: 'Losse verkoop',
   // validation
   required: 'Vul dit in',
   invalidAmount: 'Dit is geen geldig bedrag',
@@ -120,6 +120,11 @@ export const nl = {
   replaceEmptyTitle: 'Deze back-up is leeg',
   replaceEmptyMessage: 'Er staan geen klanten, verkopen of uitgaven in. Als je doorgaat, vervangt een lege administratie je huidige gegevens (er wordt eerst een back-up gemaakt).',
   replaceEmptyConfirm: 'Toch leeg terugzetten',
+  // unsaved changes
+  discardTitle: 'Wijzigingen weggooien?',
+  discardMessage: 'Wat je hebt ingevuld, wordt niet bewaard.',
+  discard: 'Weggooien',
+  keepEditing: 'Verder invullen',
 } as const;
 
 export const en: Translations<typeof nl> = {
@@ -129,7 +134,7 @@ export const en: Translations<typeof nl> = {
   navClients: 'Clients',
   navExpenses: 'Expenses',
   navBatches: 'Batches',
-  navSuppliers: 'Who I owe',
+  navSuppliers: 'To pay',
   navImport: 'To sort',
   navSettings: 'Settings',
   navMore: 'More',
@@ -180,7 +185,7 @@ export const en: Translations<typeof nl> = {
   methodOther: 'Other',
   optional: 'optional',
   none: 'None',
-  walkIn: 'Walk-in / market',
+  walkIn: 'Walk-in sale',
   required: 'Please fill this in',
   invalidAmount: 'This is not a valid amount',
   invalidDate: 'This is not a valid date',
@@ -231,4 +236,8 @@ export const en: Translations<typeof nl> = {
   replaceEmptyTitle: 'This backup is empty',
   replaceEmptyMessage: 'It has no clients, sales or expenses. If you continue, an empty administration replaces your current data (a backup is made first).',
   replaceEmptyConfirm: 'Restore empty anyway',
+  discardTitle: 'Discard changes?',
+  discardMessage: 'What you filled in will not be saved.',
+  discard: 'Discard',
+  keepEditing: 'Keep editing',
 };

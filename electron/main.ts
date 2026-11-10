@@ -39,6 +39,9 @@ const devServerUrl = process.argv.find((a) => a.startsWith('--dev-server-url='))
 const isDev = !!devServerUrl;
 
 app.setName(APP_NAME);
+// Dutch UI locale for Chromium, so native date fields read dd-mm-jjjj and the date picker is Dutch
+// even on an English Windows. Must be set before the app is ready.
+app.commandLine.appendSwitch('lang', 'nl');
 if (process.platform === 'win32') app.setAppUserModelId('nl.pittig.finances');
 
 // ---------- paths ----------

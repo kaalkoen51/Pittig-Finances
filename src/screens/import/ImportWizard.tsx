@@ -177,7 +177,7 @@ export function ImportWizard({ open, onClose }: ImportWizardProps) {
         : {};
 
   return (
-    <Sheet open={open} onClose={close} title={t('wizardTitle')} size="lg" className="import-wizard" {...sheetProps}>
+    <Sheet open={open} onClose={close} title={t('wizardTitle')} size="lg" className="import-wizard" dirty={step !== 'file'} {...sheetProps}>
       {step === 'file' && (
         <div className="pf-stack pf-stack--lg">
           <h3 className="import-wizard__step">{t('stepFile')}</h3>
@@ -239,7 +239,7 @@ export function ImportWizard({ open, onClose }: ImportWizardProps) {
           </div>
           <div className="pf-form-section import-map">
             {MAP_FIELDS.map((field) => (
-              <Field key={field} label={t(FIELD_LABEL[field])} inline>
+              <Field key={field} label={t(FIELD_LABEL[field])} inline hint={field === 'direction' ? t('fieldDirectionHint') : undefined}>
                 <Select value={String(mapping[field])} onChange={(v) => setMapping({ ...mapping, [field]: Number(v) })} options={columnOptions} />
               </Field>
             ))}
@@ -256,7 +256,6 @@ export function ImportWizard({ open, onClose }: ImportWizardProps) {
             </Field>
           </div>
 
-          {mapping.direction >= 0 && <p className="muted import-wizard__summary">{t('fieldDirectionHint')}</p>}
           <section aria-label={t('preview')}>
             <h4 className="import-wizard__sub">{t('preview')}</h4>
             {parsed.length === 0 ? (

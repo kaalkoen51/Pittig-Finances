@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { openSalesForClient } from '../../domain/calc';
 import { newId } from '../../domain/ids';
 import type { Expense, ImportRow, Payment } from '../../domain/types';
-import { exactNameMatch, expenseFromRow, linkRow, markExpensePaidByRow, matchSuggestions, paymentFromRow, reopenRow, type Suggestion } from '../../excel/match';
+import { exactNameMatch, expenseFromRow, fuzzyNameMatch, linkRow, markExpensePaidByRow, matchSuggestions, paymentFromRow, reopenRow, type Suggestion } from '../../excel/match';
 import { useFormat, useT } from '../../i18n';
 import { useActions, useData, useDerived } from '../../state/store';
 import { Amount, Badge, Button, Chips, Combobox, ConfirmDialog, Field, Segmented, Select, Toggle, useToast } from '../../ui';
@@ -19,19 +19,33 @@ export function RowCard({ row }: { row: ImportRow }) {
   const toast = useToast();
 
   const suggestions = useMemo(() => matchSuggestions(data, row), [data, row]);
-  const [mode, setMode] = useState<Mode>(row.amount >= 0 ? 'payment' : 'expense');
+  // Something that looks like this row already exists: start on "Matches existing" so a bill is
+  // marked paid instead of being booked a second time.
+  const [mode, setMode] = useState<Mode>(suggestions.length ? 'match' : row.amount >= 0 ? 'payment' : 'expense');
 
-  // Payment
-  const suggestedClient = useMemo(() => exactNameMatch(data.clients, row.counterparty), [data.clients, row.counterparty]);
+  // Payment: prefill the client by (fuzzy) name, else the only client with an open sale of exactly
+  // this amount; preselect that client's open sale with the same open amount.
+  const suggestedClient = useMemo(() => {
+    const byName = fuzzyNameMatch(data.clients, row.counterparty);
+    if (byName || row.amount <= 0) return byName;
+    const ids = new Set<string>();
+    for (const s of data.sales) if (s.clientId && derived.sales.get(s.id)?.open === row.amount && s.date <= row.date) ids.add(s.clientId);
+    return ids.size === 1 ? [...ids][0] : undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a prefill, computed once per row
+  }, [row.id]);
+  const exactClient = useMemo(() => exactNameMatch(data.clients, row.counterparty), [data.clients, row.counterparty]);
+  const saleWithSameOpen = (cid: string | undefined) =>
+    (cid && row.amount > 0 ? openSalesForClient(data, cid, derived.today).find(({ info }) => info.open === row.amount)?.sale.id : undefined) ?? '';
   const [clientId, setClientId] = useState<string | undefined>(suggestedClient);
-  const [saleId, setSaleId] = useState('');
+  const [saleId, setSaleId] = useState(() => saleWithSameOpen(suggestedClient));
   const openSales = useMemo(() => (clientId ? openSalesForClient(data, clientId, derived.today) : []), [data, clientId, derived.today]);
 
   // Expense
   const activeCategories = data.categories.filter((c) => !c.archived);
   const lastCat = data.settings.lastUsed?.categoryId;
   const [categoryId, setCategoryId] = useState<string | undefined>(lastCat && activeCategories.some((c) => c.id === lastCat) ? lastCat : undefined);
-  const suggestedSupplier = useMemo(() => exactNameMatch(data.suppliers, row.counterparty), [data.suppliers, row.counterparty]);
+  const suggestedSupplier = useMemo(() => fuzzyNameMatch(data.suppliers, row.counterparty), [data.suppliers, row.counterparty]);
+  const exactSupplier = useMemo(() => exactNameMatch(data.suppliers, row.counterparty), [data.suppliers, row.counterparty]);
   const [supplierId, setSupplierId] = useState<string | undefined>(suggestedSupplier);
   const [batchId, setBatchId] = useState('');
 
@@ -90,7 +104,7 @@ export function RowCard({ row }: { row: ImportRow }) {
       }
     }
     markDone(s.collection, s.item.id, false);
-    toast.show(t('linked'), {
+    toast.show(undoExpense ? t('linkedPaid') : t('linked'), {
       tone: 'success',
       action: {
         label: tUndo(),
@@ -112,10 +126,16 @@ export function RowCard({ row }: { row: ImportRow }) {
     return tc('undo');
   }
 
-  const suggestionLabel = (s: Suggestion) =>
-    s.collection === 'payments'
-      ? t('suggestionPayment', { client: derived.clientById.get(s.item.clientId)?.name ?? '', date: f.date(s.item.date) })
-      : t('suggestionExpense', { description: s.item.description || derived.supplierById.get(s.item.supplierId ?? '')?.name || '', date: f.date(s.item.paidOn ?? s.item.date) });
+  const suggestionLabel = (s: Suggestion) => {
+    if (s.collection === 'payments') return t('suggestionPayment', { client: derived.clientById.get(s.item.clientId)?.name ?? '', date: f.date(s.item.date) });
+    const supplier = derived.supplierById.get(s.item.supplierId ?? '')?.name;
+    const description = [s.item.description, supplier].filter(Boolean).join(' · ') || derived.categoryById.get(s.item.categoryId)?.name || '';
+    return t(s.unpaid ? 'suggestionUnpaidBill' : 'suggestionExpense', { description, date: f.date(s.item.paidOn ?? s.item.date) });
+  };
+  const selectedMatch = suggestions.find((s) => s.item.id === matchKey);
+  const selectedIsUnpaidBill = selectedMatch?.collection === 'expenses' && !!selectedMatch.unpaid;
+  const nameHint = (id: string | undefined, suggested: string | undefined, exact: string | undefined) =>
+    id && id === suggested ? (id === exact ? t('suggestedName') : t('suggestedSimilar')) : undefined;
 
   const title = row.counterparty || row.description;
   const subtitle = row.counterparty && row.description !== row.counterparty ? row.description : undefined;
@@ -147,12 +167,12 @@ export function RowCard({ row }: { row: ImportRow }) {
       <div className="import-row__body">
         {mode === 'payment' && (
           <div className="pf-form-section">
-            <Field label={tc('client')} hint={clientId && clientId === suggestedClient ? t('suggestedName') : row.amount < 0 ? t('refundHintPayment') : undefined}>
+            <Field label={tc('client')} hint={nameHint(clientId, suggestedClient, exactClient) ?? (row.amount < 0 ? t('refundHintPayment') : undefined)}>
               <Combobox
                 value={clientId}
                 onChange={(v) => {
                   setClientId(v);
-                  setSaleId('');
+                  setSaleId(saleWithSameOpen(v));
                 }}
                 options={clientOptions}
                 onCreate={createClient}
@@ -179,7 +199,7 @@ export function RowCard({ row }: { row: ImportRow }) {
               <Chips aria-label={tc('category')} value={categoryId} onChange={setCategoryId} options={activeCategories.map((c) => ({ value: c.id, label: c.name, color: c.color }))} />
             </Field>
             <div className="pf-form-row">
-              <Field label={tc('supplier')} optionalLabel={tc('optional')} hint={supplierId && supplierId === suggestedSupplier ? t('suggestedName') : undefined}>
+              <Field label={tc('supplier')} optionalLabel={tc('optional')} hint={nameHint(supplierId, suggestedSupplier, exactSupplier)}>
                 <Combobox value={supplierId} onChange={setSupplierId} options={supplierOptions} onCreate={createSupplier} placeholder={t('pickSupplier')} allowClear />
               </Field>
               {batchOptions.length > 0 && (
@@ -196,6 +216,7 @@ export function RowCard({ row }: { row: ImportRow }) {
             <p className="muted">{t('noSuggestions')}</p>
           ) : (
             <div className="import-row__matches" role="radiogroup" aria-label={t('asMatch')}>
+              <p className="muted import-row__matchhelp">{selectedIsUnpaidBill ? t('matchHelpUnpaid') : t('matchHelp')}</p>
               {suggestions.map((s) => (
                 <label key={s.item.id} className={'import-match' + (matchKey === s.item.id ? ' is-selected' : '')}>
                   <input type="radio" name={`match-${row.id}`} checked={matchKey === s.item.id} onChange={() => setMatchKey(s.item.id)} />
@@ -212,18 +233,18 @@ export function RowCard({ row }: { row: ImportRow }) {
           {t('ignore')}
         </Button>
         {mode === 'payment' && (
-          <Button variant="primary" onClick={savePayment} disabled={!clientId}>
+          <Button variant="secondary" onClick={savePayment} disabled={!clientId}>
             {t('confirmPayment')}
           </Button>
         )}
         {mode === 'expense' && (
-          <Button variant="primary" onClick={saveExpense} disabled={!categoryId}>
+          <Button variant="secondary" onClick={saveExpense} disabled={!categoryId}>
             {t('confirmExpense')}
           </Button>
         )}
         {mode === 'match' && (
-          <Button variant="primary" onClick={saveMatch} disabled={!suggestions.some((s) => s.item.id === matchKey)}>
-            {t('confirmMatch')}
+          <Button variant="secondary" onClick={saveMatch} disabled={!selectedMatch}>
+            {selectedIsUnpaidBill ? t('confirmMatchPay') : t('confirmMatch')}
           </Button>
         )}
       </footer>

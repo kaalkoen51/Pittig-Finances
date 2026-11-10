@@ -144,3 +144,17 @@
     width: 100%;
   }
 }
+
+.overview-step__optional {
+  font-weight: var(--weight-regular);
+  color: var(--label-2);
+}
+.overview-way {
+  color: var(--accent);
+}
+@media (max-width: 759.98px) {
+  /* Two-line hints may wrap on a phone instead of being cut off. */
+  .overview-welcome .pf-row__subtext {
+    white-space: normal;
+  }
+}

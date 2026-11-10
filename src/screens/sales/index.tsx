@@ -120,12 +120,8 @@ export default function SalesScreen() {
                     onClick={() => setSheet({ sale: s })}
                     title={s.clientId ? (derived.clientById.get(s.clientId)?.name ?? '?') : tc('walkIn')}
                     subtitle={`${f.date(s.date, 'short')} · ${itemsSummary(s, productName, f.lang)}`}
-                    detail={
-                      <span className="sales-row__detail">
-                        <Amount cents={saleTotal(s)} />
-                        <StatusBadge info={info} />
-                      </span>
-                    }
+                    detail={<Amount cents={saleTotal(s)} />}
+                    status={<StatusBadge info={info} />}
                   />
                 );
               })}

@@ -41,7 +41,6 @@
 }
 .expenses-batch-tag {
   display: inline-block;
-  margin-left: var(--s-1);
   padding: 0 6px;
   border-radius: var(--radius-pill);
   background: var(--neutral-soft);
@@ -82,4 +81,14 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 2px;
+}
+
+.expenses-toolbar__import {
+  margin-left: auto;
+}
+.expenses-empty-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--s-1);
 }

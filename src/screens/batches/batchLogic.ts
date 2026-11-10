@@ -90,15 +90,20 @@ export function batchFromForm(f: BatchFormState, original?: Batch): Batch {
 export interface ProductFormState {
   name: string;
   unit: string;
+  /** '' = use the automatic plural. */
+  unitPlural: string;
   defaultPrice: Cents | null;
 }
 
 export function productForm(p: Product | undefined, defaultUnit: string): ProductFormState {
-  return { name: p?.name ?? '', unit: p?.unit ?? defaultUnit, defaultPrice: p ? p.defaultPrice : null };
+  return { name: p?.name ?? '', unit: p?.unit ?? defaultUnit, unitPlural: p?.unitPlural ?? '', defaultPrice: p ? p.defaultPrice : null };
 }
 
 export function productFromForm(f: ProductFormState, original: Product | undefined, defaultUnit: string): Product {
-  return { id: original?.id ?? newId(), name: f.name.trim(), unit: f.unit.trim() || defaultUnit, defaultPrice: f.defaultPrice ?? 0, archived: original?.archived ?? false };
+  const p: Product = { id: original?.id ?? newId(), name: f.name.trim(), unit: f.unit.trim() || defaultUnit, defaultPrice: f.defaultPrice ?? 0, archived: original?.archived ?? false };
+  const plural = (f.unitPlural ?? '').trim();
+  if (plural) p.unitPlural = plural;
+  return p;
 }
 
 export function isDuplicateProduct(products: Product[], name: string, ownId?: Id): boolean {

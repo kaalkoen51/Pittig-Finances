@@ -95,6 +95,11 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   );
 }
 
+/** Like useConfirm, but returns null outside a <ConfirmProvider> (for low-level components). */
+export function useOptionalConfirm(): ConfirmFn | null {
+  return useContext(ConfirmCtx);
+}
+
 export function useConfirm(): ConfirmFn {
   const c = useContext(ConfirmCtx);
   if (!c) throw new Error('useConfirm must be used inside <ConfirmProvider>');

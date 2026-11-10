@@ -1,4 +1,4 @@
-/** Pure helpers for the Suppliers ("Who I owe") screen (unit tested). */
+/** Pure helpers for the Suppliers ("To pay") screen (unit tested). */
 import { newId } from '../../domain/ids';
 import { normalizeDescription } from '../../domain/importing';
 import type { Cents, Expense, ISODate, Id, Supplier, SupplierOwed } from '../../domain/types';

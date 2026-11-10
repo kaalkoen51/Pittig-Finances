@@ -25,10 +25,11 @@ Every screen may add its own CSS file (`src/screens/<name>/<name>.css`, imported
 - **Delete vs archive**: clients, suppliers, products, batches, categories: if `isReferenced(c,id)` show Archive instead of Delete (`remove` returns `false` and does nothing when referenced). `archive('batches', id, v)` sets `closed`.
 - Payments with a client: `Payment.clientId` is required. "Paid already" on a sale with client ⇒ also upsert a `Payment {clientId, saleId, amount: total, date: sale.date, auto: true}`. Only `auto` payments are changed/removed when the sale is edited (legacy unflagged rule in `saleForm.ts autoPaymentFor`). Clientless sales are always paid (no payment record).
 - Remember defaults: `updateSettings({ lastUsed: { clientId } })` (merged).
-- One primary button per view. Dutch default; every visible string through i18n.
+- One primary button per view (per-row actions are `secondary`, low-key/destructive links are `plain`). Dutch default; every visible string through i18n.
+- "To sort" matching (`excel/match.ts`): `matchSuggestions` also returns unpaid bills with the same amount dated up to 120 days before the bank date (`unpaid: true`, supplier-name matches first); a row with suggestions starts on "Bestaat al"; confirming an unpaid bill sets `paidOn` = bank date. `fuzzyNameMatch`/`namesAlike` prefill client/supplier (ignores BV/VOF, punctuation).
 
 ## Domain (`src/domain`, import from `../../domain` or specific files)
-`types.ts` FROZEN: `Client, Supplier, Product, Batch, Sale, SaleItem, Payment (auto?: boolean = made by the "Paid already" toggle), PaymentMethod ('bank'|'cash'|'card'|'other'), Expense (paidOn: ISODate|null), Category, ImportRow (fingerprint, status 'todo'|'done'|'ignored', linkedId?, linkedCollection?, linkCreated?: boolean = linked record was created from this row, counterparty?, importedAt), Settings (businessName, language, firstRunDone, lastUsed?), AppData (version + 9 collections + settings)`, `CollectionName`, `EntityOf<C>`, `ArchivableCollection`, derived types below.
+`types.ts` FROZEN: `Client, Supplier, Product (unitPlural?: string = plural of `unit`, omitted ⇒ guessed by `autoPluralUnit`), Batch, Sale, SaleItem, Payment (auto?: boolean = made by the "Paid already" toggle), PaymentMethod ('bank'|'cash'|'card'|'other'), Expense (paidOn: ISODate|null), Category, ImportRow (fingerprint, status 'todo'|'done'|'ignored', linkedId?, linkedCollection?, linkCreated?: boolean = linked record was created from this row, counterparty?, importedAt), Settings (businessName, language, firstRunDone, lastUsed?), AppData (version + 9 collections + settings)`, `CollectionName`, `EntityOf<C>`, `ArchivableCollection`, derived types below.
 
 `calc.ts` (pure, all take `today` optional default real today):
 ```ts
@@ -93,7 +94,8 @@ Area file `src/i18n/<area>.ts`: `export const nl = {...} as const; export const 
 ```ts
 const t = useT('sales'); t('title'); t('key', { name: 'Toko' })   // "{name}" interpolation, typed keys, falls back to nl
 const tc = useT('common');                                         // shared words: save, cancel, delete, archive, client, amount, paid, overdue, walkIn, …
-const f = useFormat(); f.money(1250, {signed}) f.date(iso, 'short'|'medium'|'long') f.month('2026-03'); f.lang
+const f = useFormat(); f.money(1250, {signed}) f.date(iso, 'medium'|'long') f.month('2026-03'); f.lang   // UI dates are always "9 nov 2026" ('short' is mapped to medium)
+plural(n, one, other); unitFor(product, n, lang) → "pot"/"potten"; autoPluralUnit(unit, lang)   // from '../../i18n'
 useLang(); translate(lang, area, key, vars)
 ```
 
@@ -108,13 +110,13 @@ Bases: `/overview /sales /clients /expenses /batches /suppliers /import /setting
 
 ## UI (`src/ui`, `import { … } from '../../ui'`)
 - `Button {variant:'primary'|'secondary'|'plain'|'destructive', size:'sm'|'md'|'lg', icon?, block?}` – type="button" by default.
-- `Sheet {open, onClose, title, onSubmit?, submitLabel?, submitDisabled?, cancelLabel?, footer?, size?:'md'|'lg'}` – with `onSubmit` it is a `<form>`: Enter submits, Save top-right; Esc/scrim/Cancel close; focus trap; initial focus = `[data-autofocus]` or first field. Group fields with `<div className="pf-form-section">` and side-by-side with `pf-form-row`.
+- `Sheet {open, onClose, title, onSubmit?, submitLabel?, submitDisabled?, cancelLabel?, footer?, size?:'md'|'lg', dirty?}` – with `onSubmit` it is a `<form>`: Enter submits, Save top-right; Esc/scrim/Cancel close. **Every form sheet passes `dirty`** (form state ≠ initial state): Esc/Cancel then ask "Wijzigingen weggooien?" and a scrim click does nothing. While a sheet/dialog is open `#root` is `inert` (toasts are portalled to body); focus trap; initial focus = `[data-autofocus]` or first field. Group fields with `<div className="pf-form-section">` and side-by-side with `pf-form-row`.
 - `Field {label, hint?, error?, optionalLabel?, inline?}` wrapping one control; controls auto-wire id/aria: `TextInput`, `TextArea`, `Select {value, onChange(v), options, placeholder?}`, `MoneyInput {value: Cents|null, onChange(Cents|null), allowNegative?}`, `DateField {value?: ISODate, onChange(iso|undefined)}`, `Combobox {value?, onChange(id|undefined), options:{value,label,hint?}[], onCreate?(label)=>newId, allowClear?, placeholder?}`.
 - `Chips {options:{value,label,color?}[], value?, onChange, 'aria-label', allowDeselect?, trailing?}`, `Segmented {options, value, onChange, 'aria-label', size?, block?}`, `Toggle {checked, onChange, label, description?}`.
-- `Card {title?, action?, padded?}`, `Stat {label, value, hint?}`, `List {header?, footer?}` + `ListRow {title, subtitle?, detail?, leading?, badge?, href?|onClick?, chevron?, muted?}`, `Badge {tone:'neutral'|'accent'|'success'|'warning'|'danger'}`, `EmptyState {icon?, title, message?, action?}`, `Amount {cents, tone?:'in'|'out'|'neutral'|'auto', signed?, size?:'sm'|'md'|'lg'|'xl', compact?}`.
+- `Card {title?, action?, padded?}`, `Stat {label, value, hint?}`, `List {header?, footer?}` + `ListRow {title, subtitle?, detail?, leading?, badge?, tag? (never-truncated chip on the subtitle line), status? (status Badge: under the detail on desktop, on the subtitle line on phones), href?|onClick?, chevron?, muted?}`, `Badge {tone:'neutral'|'accent'|'success'|'warning'|'danger'}`, `EmptyState {icon?, title, message?, action?}`, `Amount {cents, tone?:'in'|'out'|'neutral'|'auto', signed?, size?:'sm'|'md'|'lg'|'xl', compact?}`.
 - `PageHeader {title, subtitle?, action?, back?:{href,label}, children? (toolbar)}`, `SearchField {value, onChange, placeholder?}`.
 - `ConfirmDialog {open, title, message?, confirmLabel?, destructive?, onConfirm, onCancel}` or `const confirm = useConfirm(); if (await confirm({title, destructive:true}))`.
 - `const toast = useToast(); toast.show(msg, {tone?:'success'|'danger', action?:{label,onClick}})`.
 - `Icon {name, size?, label?}` – names: plus check close chevron-right/left/down search overview sales clients expenses batches suppliers import settings more alert download upload trash archive edit calendar folder refresh money.
 - Layout helpers (shell.css): `pf-stack` (16px gap column), `pf-stack--lg`, `pf-grid` (auto-fit cards), `pf-row-actions`, `muted`, `num` (tabular numbers), `visually-hidden`.
-- Tokens (`tokens.css`): `--s-1…--s-8` (8pt), `--radius`, `--bg`, `--bg-elevated`, `--bg-fill`, `--label`, `--label-2`, `--separator`, `--accent`, `--accent-fill`, `--on-accent`, `--success`, `--warning`, `--danger`, `--*-soft`, `--text-*`. Light + dark automatic.
+- Tokens (`tokens.css`): `--s-1…--s-8` (8pt), `--radius`, `--bg`, `--bg-elevated`, `--bg-fill`, `--label`, `--label-2`, `--separator`, `--accent` (chili, text/icons), `--accent-fill` (primary button), `--on-accent`, `--success`, `--warning`, `--danger` (magenta-red, distinct from the brand), `--*-soft`, `--*-text` (AA text on the soft tint, used by badges), `--focus` / `--focus-ring` (neutral blue), `--text-*`. Light + dark automatic.

@@ -55,7 +55,7 @@
 .import-match.is-selected {
   outline: 2px solid var(--accent);
   outline-offset: -2px;
-  background: var(--accent-fill);
+  background: var(--accent-soft);
 }
 .import-match__label {
   flex: 1;
@@ -126,7 +126,7 @@
 }
 .import-drop.is-dragging {
   border-color: var(--accent);
-  background: var(--accent-fill);
+  background: var(--accent-soft);
 }
 .import-error {
   color: var(--danger);
@@ -180,4 +180,28 @@
 }
 .import-row__body .pf-form-row {
   margin-top: var(--s-1);
+}
+
+/* Column mapping: label left, select right; the hint sits under the select. Stacked on phones. */
+.import-map .pf-field--inline {
+  display: grid;
+  grid-template-columns: minmax(120px, 1fr) minmax(0, 2fr);
+  align-items: center;
+  column-gap: var(--s-2);
+  row-gap: var(--s-half);
+}
+.import-map .pf-field--inline .pf-field__hint {
+  grid-column: 2;
+}
+@media (max-width: 759.98px) {
+  .import-map .pf-field--inline {
+    grid-template-columns: 1fr;
+  }
+  .import-map .pf-field--inline .pf-field__hint {
+    grid-column: 1;
+  }
+}
+.import-row__matchhelp {
+  margin: 0;
+  font-size: var(--text-sm);
 }

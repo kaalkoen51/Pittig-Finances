@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type FormEvent, type ReactNode } from 'react';
+import { useOptionalConfirm } from './ConfirmDialog';
 import { createPortal } from 'react-dom';
 import { useT } from '../i18n';
 import { Button } from './Button';
@@ -24,6 +25,11 @@ export interface SheetProps {
   children: ReactNode;
   size?: 'md' | 'lg';
   className?: string;
+  /**
+   * The form has unsaved changes. Esc and Cancel then ask "Discard changes?" first, and a click
+   * on the backdrop does nothing (so a stray click never throws away typed work).
+   */
+  dirty?: boolean;
 }
 
 /**
@@ -31,12 +37,29 @@ export interface SheetProps {
  * Esc closes (top-most only), focus is trapped and restored on close.
  * Initial focus: the first element with [autofocus]/data-autofocus, else the first field.
  */
-export function Sheet({ open, onClose, title, onSubmit, submitLabel, submitDisabled, cancelLabel, footer, children, size = 'md', className }: SheetProps) {
+export function Sheet({ open, onClose, title, onSubmit, submitLabel, submitDisabled, cancelLabel, footer, children, size = 'md', className, dirty }: SheetProps) {
   const panel = useRef<HTMLDivElement>(null);
   const titleId = useId();
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
   const tc = useT('common');
+  const confirm = useOptionalConfirm();
+  const asking = useRef(false);
+
+  /** Close, but ask first when there are unsaved changes. */
+  const requestClose = async () => {
+    if (!dirty) return onClose();
+    if (asking.current) return;
+    asking.current = true;
+    try {
+      const ok = confirm
+        ? await confirm({ title: tc('discardTitle'), message: tc('discardMessage'), confirmLabel: tc('discard'), cancelLabel: tc('keepEditing'), destructive: true })
+        : window.confirm(tc('discardTitle'));
+      if (ok) onClose();
+    } finally {
+      asking.current = false;
+    }
+  };
+  const onCloseRef = useRef(requestClose);
+  onCloseRef.current = requestClose;
 
   useEffect(() => {
     if (!open) return;
@@ -46,7 +69,7 @@ export function Sheet({ open, onClose, title, onSubmit, submitLabel, submitDisab
       if (!isTopLayer(layer)) return;
       if (e.key === 'Escape' && !e.defaultPrevented) {
         e.preventDefault();
-        onCloseRef.current();
+        void onCloseRef.current();
       } else if (panel.current) trapTab(e, panel.current);
     };
     document.addEventListener('keydown', onKey);
@@ -76,7 +99,7 @@ export function Sheet({ open, onClose, title, onSubmit, submitLabel, submitDisab
 
   const header = (
     <header className="pf-sheet__header">
-      <Button variant="plain" onClick={onClose} className="pf-sheet__cancel">
+      <Button variant="plain" onClick={() => void requestClose()} className="pf-sheet__cancel">
         {cancelLabel ?? tc('cancel')}
       </Button>
       <h2 id={titleId} className="pf-sheet__title">
@@ -101,7 +124,7 @@ export function Sheet({ open, onClose, title, onSubmit, submitLabel, submitDisab
 
   return createPortal(
     <div className="pf-sheet-root">
-      <div className="pf-scrim" onMouseDown={onClose} aria-hidden="true" />
+      <div className="pf-scrim" onMouseDown={() => !dirty && onClose()} aria-hidden="true" />
       <div ref={panel} role="dialog" aria-modal="true" aria-labelledby={titleId} tabIndex={-1} className={cx('pf-sheet', `pf-sheet--${size}`, className)}>
         {onSubmit ? (
           <form className="pf-sheet__form" onSubmit={handleSubmit} noValidate>

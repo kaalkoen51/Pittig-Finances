@@ -83,7 +83,7 @@ test('sale on account → client balance → payment → balance 0', async ({ pa
   await expect(page.getByRole('button', { name: all('Toko Rasa', '26,00', 'Betaald') })).toBeVisible();
 });
 
-test('unpaid expense with new supplier → "Wie ik betaal" → mark paid', async ({ page }) => {
+test('unpaid expense with new supplier → "Te betalen" → mark paid', async ({ page }) => {
   await go(page, '/expenses', 'Uitgaven');
   await page.getByRole('button', { name: 'Eerste uitgave toevoegen' }).click();
   const dialog = page.getByRole('dialog', { name: 'Nieuwe uitgave' });
@@ -99,18 +99,18 @@ test('unpaid expense with new supplier → "Wie ik betaal" → mark paid', async
   await expect(page.getByRole('button', { name: all('Rode pepers', 'Nog te betalen', '42,50') })).toBeVisible();
 
   // Appears under suppliers owed
-  await go(page, '/suppliers', 'Wie ik betaal');
+  await go(page, '/suppliers', 'Te betalen');
   const main = page.getByRole('main');
   await expect(main).toContainText(/Totaal nog te betalen\s*€\s*42,50/);
   await main.getByRole('link', { name: /Groothandel Peper/ }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Groothandel Peper' })).toBeVisible();
 
   // Mark paid
-  await main.getByRole('button', { name: /Markeer Rode pepers als betaald/ }).click();
+  await main.getByRole('button', { name: /Zet op betaald: Rode pepers/ }).click();
   await expect(main).toContainText('Alles is betaald.');
   await expect(main.getByRole('button', { name: all('Rode pepers', 'betaald') })).toBeVisible();
 
-  await go(page, '/suppliers', 'Wie ik betaal');
+  await go(page, '/suppliers', 'Te betalen');
   await expect(main).not.toContainText('Totaal nog te betalen');
 });
 

@@ -2,7 +2,7 @@ import type { Translations } from './define';
 
 // Owned by the feature agent for this area. Add keys to nl first; en must have the same keys.
 export const nl = {
-  title: 'Wie ik betaal',
+  title: 'Te betalen',
   subtitle: 'Je leveranciers en wat je ze nog moet betalen',
   add: 'Leverancier',
   addTitle: 'Nieuwe leverancier',
@@ -24,7 +24,7 @@ export const nl = {
   noUnpaid: 'Alles is betaald.',
   noPaid: 'Nog niets betaald aan deze leverancier.',
   markPaid: 'Zet op betaald',
-  markPaidLabel: 'Markeer {name} als betaald',
+  markPaidLabel: 'Zet op betaald: {name}',
   markedPaid: 'Gemarkeerd als betaald',
   payAll: 'Alles op betaald',
   payAllTitle: 'Alles als betaald markeren?',
@@ -38,11 +38,11 @@ export const nl = {
   deleteTitle: '{name} verwijderen?',
   archiveHint: 'Deze leverancier heeft uitgaven en kan daarom niet worden verwijderd. Archiveren verbergt hem uit de lijsten.',
   notFound: 'Deze leverancier bestaat niet (meer).',
-  backToList: 'Wie ik betaal',
+  backToList: 'Te betalen',
 } as const;
 
 export const en: Translations<typeof nl> = {
-  title: 'Who I owe',
+  title: 'To pay',
   subtitle: 'Your suppliers and what you still owe them',
   add: 'Supplier',
   addTitle: 'New supplier',
@@ -64,7 +64,7 @@ export const en: Translations<typeof nl> = {
   noUnpaid: 'Everything is paid.',
   noPaid: 'Nothing paid to this supplier yet.',
   markPaid: 'Mark paid',
-  markPaidLabel: 'Mark {name} as paid',
+  markPaidLabel: 'Mark paid: {name}',
   markedPaid: 'Marked as paid',
   payAll: 'Mark all paid',
   payAllTitle: 'Mark everything as paid?',
@@ -78,5 +78,5 @@ export const en: Translations<typeof nl> = {
   deleteTitle: 'Delete {name}?',
   archiveHint: 'This supplier has expenses, so it cannot be deleted. Archiving hides it from the lists.',
   notFound: 'This supplier does not exist (anymore).',
-  backToList: 'Who I owe',
+  backToList: 'To pay',
 };

@@ -43,11 +43,12 @@ Run workflow**. The `.exe` is then attached to the run under "Artifacts".
 ### 1.3 Test it on your own Windows PC first
 
 Install it, then run through this checklist:
-- Click **Settings → Load demo data** and look around.
+- Click **Instellingen → Laad voorbeeldgegevens** (Settings → Load demo data) and look around.
+  On a brand-new install the Overview also offers **Probeer met voorbeeldgegevens**.
 - Add a sale.
 - Close and reopen the app.
 - Export to Excel.
-- Then **Settings → Erase all data**.
+- Then **Instellingen → Alle gegevens wissen** (Erase all data).
 
 You need to see the SmartScreen warning described below for yourself, so you
 can tell her what to expect.
@@ -80,22 +81,32 @@ can tell her what to expect.
 
 Do this together, using her own real data:
 
-1. **Settings**: fill in the business name. The language is already Dutch.
-2. **Batches → New product**: add each product with its unit (for example "pot")
-   and its normal price.
-3. **Batches → New batch**: add the current batch of each product, with the
-   number of units made.
-4. **Sales → New sale**: log one real sale.
-   - She can type a new client name directly in the client field.
-   - Turn on "Already paid" if the money is already in.
-5. **Expenses → New expense**: log one real purchase.
-   - Choose a category and, if it belongs to a batch, pick the batch.
-   - Turn off "Already paid" if she still has to pay it. It then shows up under
-     **Suppliers** ("Who I owe").
-6. Show her the **Overview**. That is her home screen.
+The app is in Dutch; the Dutch button labels are given exactly as she sees them.
+
+1. **Instellingen** (Settings): fill in **Bedrijfsnaam** (business name). The
+   language is already Dutch.
+2. **Batches → Eerste product toevoegen** (later: **Product toevoegen** at the
+   bottom of the Batches screen): add each product with its unit (**Eenheid**,
+   for example "pot") and its normal price (**Standaardprijs**).
+3. **Batches → + Batch**: add the current batch of each product, with the number
+   of units made (**Aantal gemaakt**). Products and batches are optional: she
+   can also start with a sale straight away.
+4. **Verkopen → + Verkoop** (sheet "Nieuwe verkoop"): log one real sale.
+   - She can type a new client name directly in the **Klant** field.
+   - Turn on **Al betaald** if the money is already in.
+5. **Uitgaven → + Uitgave** (sheet "Nieuwe uitgave"): log one real purchase.
+   - Choose a category and, if it belongs to a batch, pick it under **Hoort bij batch**.
+   - Turn off **Al betaald** if she still has to pay it. It then shows up under
+     **Te betalen** (suppliers / what she owes).
+6. Show her **Overzicht** (Overview). That is her home screen.
 7. Optional: on her bank's website, export her transactions to CSV or Excel.
-   Then use **To sort → Import** and sort a few rows together. Each row needs one
-   click: payment from a client, expense, already logged, or ignore.
+   Then use **Uitgaven → Bankafschrift importeren** (the same button is on the
+   **Te sorteren** screen once there are rows) and sort a few rows together.
+   Each row needs one choice: **Betaling van klant**, **Uitgave**, **Bestaat al**
+   (already logged; for an open bill the button reads **Markeer rekening als
+   betaald**) or **Negeer**.
+8. Closing a half-filled form asks **Wijzigingen weggooien?** — **Verder
+   invullen** keeps the form, **Weggooien** discards it.
 
 Tell her two things:
 - She cannot really break anything, because there are automatic backups (section 4).
@@ -128,16 +139,17 @@ Her PC can break or get stolen, so pick one of these:
   Backups folder is then copied to the cloud automatically. This is why the
   backups live in Documents while the live file does not: OneDrive can lock live
   files.
-- **Or:** once a month, do **Settings → Save backup file** to a USB stick or to
-  email.
+- **Or:** once a month, do **Instellingen → Back-upbestand bewaren** (save
+  backup file) to a USB stick or to email.
 
 ### Restoring
 
-- **From an automatic backup:** Settings → Backups → choose a date → Restore.
-- **From a backup file:** Settings → Restore from file.
+- **From an automatic backup:** Instellingen → **Back-ups op dit apparaat** →
+  choose a date → **Terugzetten**.
+- **From a backup file:** Instellingen → **Terugzetten uit bestand**.
 - **On a new PC:**
   1. Install the app.
-  2. Settings → Restore from file.
+  2. Instellingen → **Terugzetten uit bestand**.
   3. Pick the newest file from `Documents\Pittig Finances\Backups` (via OneDrive) or from the USB stick.
 
 ---
@@ -155,7 +167,7 @@ Her PC can break or get stolen, so pick one of these:
 3. Her app checks for updates every time it starts. It downloads the update
    quietly and asks "Restart to update". Her data is kept.
 
-She can also check by hand under **Settings → Check for updates**.
+She can also check by hand under **Instellingen → Zoek naar updates**.
 
 ### 5.2 Option C (manual)
 
@@ -189,13 +201,14 @@ Tips:
 The app works on a phone too: the same screens, with a bottom tab bar. But
 **phone data is separate from the PC**. There is no sync in this version.
 
-- Hosting it needs GitHub Pages. Run **Actions → Deploy PWA (Pages)** by hand.
+- Hosting it needs GitHub Pages (enable it under Settings → Pages → Source:
+  "GitHub Actions"). Run **Actions → Web app (GitHub Pages)** by hand.
   Pages on a private repo needs a paid GitHub plan.
 - On her phone, she opens the link and chooses "Add to Home screen".
 - Recommended use: a quick lookup, or a demo. For real bookkeeping, use the PC
   only, so there is a single source of truth.
-- Moving data between PC and phone: Save backup file on one, Restore from file
-  on the other.
+- Moving data between PC and phone: **Back-upbestand bewaren** on one,
+  **Terugzetten uit bestand** on the other.
 
 Syncing PC and phone is a possible next step. It would need a small online
 storage service.
@@ -207,21 +220,22 @@ storage service.
 **Pittig Finances – zo werkt het**
 
 - **Verkoop gedaan?**
-  1. Ga naar **Verkopen → Nieuwe verkoop**.
-  2. Kies de klant (of typ een nieuwe naam), het product en het aantal.
-  3. Al betaald? Zet **Al betaald** aan.
-- **Geld binnengekomen van een klant?** Ga naar **Klanten**, open de klant en kies **Betaling vastleggen**.
+  1. Ga naar **Verkopen** en klik **+ Verkoop**.
+  2. Kies de klant (of typ een nieuwe naam), het product en het aantal. Laat **Klant** leeg voor een losse verkoop.
+  3. Al betaald? Zet **Al betaald** aan. Klik **Bewaar**.
+- **Geld binnengekomen van een klant?** Ga naar **Klanten**, open de klant en klik **Betaling ontvangen**.
 - **Iets gekocht?**
-  1. Ga naar **Uitgaven → Nieuwe uitgave**.
+  1. Ga naar **Uitgaven** en klik **+ Uitgave**.
   2. Vul het bedrag in en kies een categorie.
-  3. Hoort het bij een batch? Kies de batch.
-  4. Nog niet betaald? Zet **Al betaald** uit.
-- **Rekening betaald?** Ga naar **Leveranciers**, kies de leverancier en klik **Markeer als betaald**.
-- **Nieuwe batch gemaakt?** Ga naar **Batches → Nieuwe batch**. Daar zie je ook de kosten, de opbrengst en de winst per batch.
+  3. Hoort het bij een batch? Kies de batch bij **Hoort bij batch**.
+  4. Nog niet betaald? Zet **Al betaald** uit. Klik **Bewaar**.
+- **Rekening betaald?** Ga naar **Te betalen**, kies de leverancier en klik **Zet op betaald**.
+- **Nieuwe batch gemaakt?** Ga naar **Batches** en klik **+ Batch**. Daar zie je ook de kosten, de omzet en de winst per batch. Een nieuw product maak je onderaan met **Product toevoegen**.
 - **Bankafschriften verwerken?**
   1. Download een CSV- of Excel-bestand bij je bank.
-  2. Ga naar **Te sorteren → Importeren**.
-  3. Geef elke regel één klik.
-- **Naar Excel?** Ga naar **Instellingen → Exporteren naar Excel**.
-- **Back-ups** gaan vanzelf, elke dag, naar `Documenten\Pittig Finances\Backups`. Ben je iets kwijt? Ga naar **Instellingen → Back-ups → Herstellen**.
+  2. Ga naar **Uitgaven** en klik **Bankafschrift importeren**. Kies het bestand en klik **Importeer … regels**.
+  3. Ga naar **Te sorteren** en kies per regel: **Betaling van klant**, **Uitgave**, **Bestaat al** of **Negeer**.
+- **Per ongeluk een formulier gesloten?** De app vraagt eerst **Wijzigingen weggooien?** Kies **Verder invullen** om door te gaan.
+- **Naar Excel?** Ga naar **Instellingen** en klik **Alles exporteren naar Excel**.
+- **Back-ups** gaan vanzelf, elke dag, naar `Documenten\Pittig Finances\Backups`. Ben je iets kwijt? Ga naar **Instellingen → Back-ups op dit apparaat** en klik **Terugzetten**.
 - **Hulp nodig?** Bel/app Johan 🙂

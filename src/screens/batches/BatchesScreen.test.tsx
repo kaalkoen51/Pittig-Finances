@@ -21,8 +21,9 @@ describe('Batches screen', () => {
     render(<App storage={new MemoryStorage(demoData())} />);
     const user = userEvent.setup();
     const section = await screen.findByRole('region', { name: /Sambal Pittig/ });
-    await user.click(within(section).getByRole('button', { name: 'Batch toevoegen' }));
+    await user.click(screen.getByRole('button', { name: 'Batch' }));
     const dialog = screen.getByRole('dialog', { name: 'Nieuwe batch' });
+    await user.selectOptions(within(dialog).getByLabelText('Product'), 'Sambal Pittig');
     const t = today();
     expect(within(dialog).getByLabelText('Batchcode')).toHaveValue(`SP-${t.slice(2, 4)}${t.slice(5, 7)}${t.slice(8, 10)}`);
     await user.type(within(dialog).getByLabelText('Aantal gemaakt'), '100{Enter}');

@@ -22,6 +22,10 @@
 .pf-stack--lg {
   gap: var(--s-3);
 }
+/* Grouped lists inside a stack: the stack gap is the only spacing. */
+.pf-stack > .pf-list-group + .pf-list-group {
+  margin-top: 0;
+}
 .pf-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -93,12 +97,9 @@
   background: var(--bg-hover);
 }
 .pf-nav.is-active {
-  background: var(--accent-fill);
-  color: var(--on-accent);
+  background: var(--accent-soft);
+  color: var(--label);
   font-weight: var(--weight-semibold);
-}
-.pf-nav.is-active svg {
-  color: var(--on-accent);
 }
 .pf-nav__label {
   flex: 1;
@@ -114,8 +115,7 @@
   text-align: center;
 }
 .pf-nav.is-active .pf-nav__count {
-  background: rgba(255, 255, 255, 0.25);
-  color: var(--on-accent);
+  background: var(--bg-elevated);
 }
 .pf-sidebar__footer {
   margin-top: auto;
@@ -147,6 +147,9 @@
   }
   .pf-page-header {
     padding-top: calc(var(--s-2) + env(safe-area-inset-top));
+  }
+  .pf-stack--lg {
+    gap: var(--s-2);
   }
   .pf-tabbar {
     position: fixed;

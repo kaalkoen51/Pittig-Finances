@@ -94,8 +94,9 @@ describe('To sort screen', () => {
     data.expenses.push({ id: 'exp-open', date: row.date, categoryId: 'demo-cat-other', description: 'Trechters', amount: 1899, paidOn: null });
     const { storage, user } = await setup('#/import', data);
     const c = card(/bol\.com/);
-    await user.click(within(c).getByRole('radio', { name: 'Bestaat al (1)' }));
-    await user.click(within(c).getByRole('button', { name: 'Koppel' }));
+    // An open bill with the same amount: the row starts on "Bestaat al".
+    expect(within(c).getByRole('radio', { name: 'Bestaat al (1)' })).toBeChecked();
+    await user.click(within(c).getByRole('button', { name: 'Markeer rekening als betaald' }));
     await waitFor(() => {
       const d = stored(storage);
       expect(d.importRows.find((r) => r.id === row.id)).toMatchObject({ status: 'done', linkedId: 'exp-open' });
@@ -169,7 +170,7 @@ describe('Import wizard', () => {
       expect(rows.map((r) => r.amount).sort((a, b) => a - b)).toEqual([-123456, 12500]);
     });
 
-    await user.click(screen.getByRole('button', { name: 'Importeer uit Excel of CSV' }));
+    await user.click(screen.getByRole('button', { name: 'Bankafschrift importeren' }));
     const again = await screen.findByRole('dialog');
     await user.upload(within(again).getByTestId('import-file'), new File([csv], 'ING (1).csv', { type: 'text/csv' }));
     await user.click(await within(again).findByRole('button', { name: 'Importeer 2 regels' }));

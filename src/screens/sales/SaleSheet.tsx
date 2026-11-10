@@ -4,7 +4,7 @@ import { paymentsForSale } from '../../domain/calc';
 import { today as todayFn } from '../../domain/dates';
 import { newId } from '../../domain/ids';
 import type { Id, Sale } from '../../domain/types';
-import { useFormat, useT } from '../../i18n';
+import { unitFor, useFormat, useT } from '../../i18n';
 import { useActions, useData, useDerived } from '../../state/store';
 import { Amount, Button, Combobox, DateField, Field, Icon, MoneyInput, Select, Sheet, TextArea, TextInput, Toggle, useConfirm, useToast } from '../../ui';
 import './sales.css';
@@ -55,6 +55,8 @@ function SaleSheetInner({ onClose, sale, clientId, onSaved }: SaleSheetProps) {
       ? saleToForm(sale, linked, f.lang)
       : emptySaleForm(data, { today: todayFn(), lastClientId: data.settings.lastUsed?.clientId, lastProductId: data.settings.lastUsed?.productId, clientId }),
   );
+  const [initial] = useState(form);
+  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
   const [errors, setErrors] = useState<SaleFormErrors>({});
   const [paying, setPaying] = useState(false);
 
@@ -138,6 +140,7 @@ function SaleSheetInner({ onClose, sale, clientId, onSaved }: SaleSheetProps) {
         title={sale ? t('editSale') : t('newSale')}
         onSubmit={submit}
         size="lg"
+        dirty={dirty}
         className="sales-sheet"
         footer={
           sale ? (
@@ -230,7 +233,7 @@ function SaleSheetInner({ onClose, sale, clientId, onSaved }: SaleSheetProps) {
                         <Select value={line.batchId ?? ''} onChange={(v) => setLine(line.key, { batchId: v || undefined })} options={batches} placeholder={t('noBatch')} />
                       </Field>
                     )}
-                    <Field label={product ? `${tc('quantity')} (${product.unit})` : tc('quantity')} error={lineErr(line.key, 'quantity')}>
+                    <Field label={product ? `${tc('quantity')} (${unitFor(product, 2, f.lang)})` : tc('quantity')} error={lineErr(line.key, 'quantity')}>
                       <TextInput inputMode="decimal" value={line.quantity} onChange={(e) => setLine(line.key, { quantity: e.target.value })} className="num" />
                     </Field>
                     <Field label={tc('unitPrice')} error={lineErr(line.key, 'unitPrice')}>

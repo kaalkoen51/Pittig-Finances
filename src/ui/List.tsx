@@ -34,6 +34,13 @@ export interface ListRowProps {
   leading?: ReactNode;
   /** Shown after the title (e.g. <Badge>). */
   badge?: ReactNode;
+  /** Small tag at the end of the subtitle line that is never cut off (e.g. a batch code). */
+  tag?: ReactNode;
+  /**
+   * Status badge for the row (Open / Paid / Overdue…). Shown under the detail on wide screens;
+   * on phones it sits on the subtitle line so the title keeps its room.
+   */
+  status?: ReactNode;
   /** Navigate (hash link, e.g. href('/clients/123')). */
   href?: string;
   onClick?: () => void;
@@ -45,20 +52,31 @@ export interface ListRowProps {
 }
 
 /** One row: leading · title/subtitle · detail · chevron. Whole row is the click target. */
-export function ListRow({ title, subtitle, detail, leading, badge, href, onClick, chevron, muted, className }: ListRowProps) {
+export function ListRow({ title, subtitle, detail, leading, badge, tag, status, href, onClick, chevron, muted, className }: ListRowProps) {
   const interactive = !!(href || onClick);
   const showChevron = chevron ?? interactive;
+  const hasSide = detail !== undefined || !!status;
   const content = (
     <>
       {leading && <span className="pf-row__leading">{leading}</span>}
       <span className="pf-row__main">
         <span className="pf-row__title">
-          {title}
+          <span className="pf-row__title-text">{title}</span>
           {badge && <span className="pf-row__badge">{badge}</span>}
         </span>
-        {subtitle && <span className="pf-row__subtitle">{subtitle}</span>}
+        {(subtitle || tag) && (
+          <span className="pf-row__subtitle">
+            {subtitle && <span className="pf-row__subtext">{subtitle}</span>}
+            {tag && <span className="pf-row__tag">{tag}</span>}
+          </span>
+        )}
       </span>
-      {detail !== undefined && <span className="pf-row__detail">{detail}</span>}
+      {hasSide && (
+        <span className="pf-row__side">
+          {detail !== undefined && <span className="pf-row__detail">{detail}</span>}
+          {status && <span className="pf-row__status">{status}</span>}
+        </span>
+      )}
       {showChevron && (
         <span className="pf-row__chevron" aria-hidden="true">
           <Icon name="chevron-right" size={16} />

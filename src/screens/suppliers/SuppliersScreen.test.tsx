@@ -19,10 +19,10 @@ describe('Suppliers screen', () => {
     window.location.hash = '#/suppliers/demo-s-jars';
     render(<App storage={new MemoryStorage(demoData())} />);
     const user = userEvent.setup();
-    await user.click(await screen.findByRole('button', { name: 'Markeer 150 potten met deksel als betaald' }));
+    await user.click(await screen.findByRole('button', { name: 'Zet op betaald: 150 potten met deksel' }));
     expect(screen.getByText('Alles is betaald.')).toBeInTheDocument();
     await user.click(screen.getByRole('button', { name: 'Ongedaan maken' }));
-    expect(screen.getByRole('button', { name: 'Markeer 150 potten met deksel als betaald' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Zet op betaald: 150 potten met deksel' })).toBeInTheDocument();
   });
 
   it('adds a supplier and offers archive instead of delete when it is used', async () => {

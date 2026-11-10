@@ -53,6 +53,7 @@ function SupplierList() {
     <>
       <PageHeader title={t('title')} subtitle={t('subtitle')} action={addButton} />
       <div className="pf-stack pf-stack--lg">
+        {(rows.length > 0 || noSupplier || derived.youOwe !== 0) && (
         <Card>
           {derived.youOwe !== 0 ? (
             <div className="suppliers-totals">
@@ -65,6 +66,7 @@ function SupplierList() {
             </p>
           )}
         </Card>
+        )}
 
         {rows.length === 0 && !noSupplier ? (
           <EmptyState
@@ -186,9 +188,9 @@ function SupplierDetail({ id }: { id: Id }) {
         subtitle={contact || undefined}
         back={back}
         action={
-          unpaid.length > 1 ? (
-            <Button variant="primary" icon={<Icon name="check" />} onClick={payAll}>
-              {t('payAll')}
+          supplier && !supplier.archived ? (
+            <Button variant="primary" icon={<Icon name="plus" />} onClick={() => setExpenseSheet({ mode: 'new' })}>
+              {t('addExpense')}
             </Button>
           ) : undefined
         }
@@ -199,9 +201,9 @@ function SupplierDetail({ id }: { id: Id }) {
               {tc('edit')}
             </Button>
           )}
-          {supplier && !supplier.archived && (
-            <Button size="sm" icon={<Icon name="plus" />} onClick={() => setExpenseSheet({ mode: 'new' })}>
-              {t('addExpense')}
+          {unpaid.length > 1 && (
+            <Button size="sm" icon={<Icon name="check" />} onClick={payAll}>
+              {t('payAll')}
             </Button>
           )}
           {supplier?.archived && <Badge>{tc('archived')}</Badge>}

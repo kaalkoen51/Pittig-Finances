@@ -53,6 +53,8 @@ function PaymentSheetInner({ onClose, clientId, saleId, payment, onSaved }: Reco
           notes: '',
         },
   );
+  const [initial] = useState(form);
+  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
   const [errors, setErrors] = useState<PaymentFormErrors>({});
   const amountTouched = useRef(!!payment);
 
@@ -127,6 +129,7 @@ function PaymentSheetInner({ onClose, clientId, saleId, payment, onSaved }: Reco
       onClose={onClose}
       title={payment ? t('editPaymentTitle') : t('paymentTitle')}
       onSubmit={submit}
+      dirty={dirty}
       footer={
         payment ? (
           <Button variant="destructive" onClick={onDelete}>

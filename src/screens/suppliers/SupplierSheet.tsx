@@ -26,6 +26,8 @@ function SupplierSheetInner({ onClose, supplier, onSaved }: SupplierSheetProps) 
   const toast = useToast();
   const confirm = useConfirm();
   const [form, setForm] = useState<SupplierFormState>(() => supplierForm(supplier));
+  const [initial] = useState(form);
+  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
   const [submitted, setSubmitted] = useState(false);
   const set = (patch: Partial<SupplierFormState>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -81,7 +83,7 @@ function SupplierSheetInner({ onClose, supplier, onSaved }: SupplierSheetProps) 
   ) : undefined;
 
   return (
-    <Sheet open onClose={onClose} title={supplier ? t('editTitle') : t('addTitle')} onSubmit={submit} footer={footer} className="suppliers-sheet">
+    <Sheet open onClose={onClose} title={supplier ? t('editTitle') : t('addTitle')} onSubmit={submit} footer={footer} className="suppliers-sheet" dirty={dirty}>
       <div className="pf-form-section">
         <Field label={tc('name')} error={nameError}>
           <TextInput value={form.name} onChange={(e) => set({ name: e.target.value })} placeholder={t('namePlaceholder')} data-autofocus />

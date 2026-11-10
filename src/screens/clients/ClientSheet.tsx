@@ -38,6 +38,8 @@ function Inner({ onClose, client, onSaved }: ClientSheetProps) {
   const { upsert } = useActions();
   const toast = useToast();
   const [form, setForm] = useState({ name: client?.name ?? '', email: client?.email ?? '', phone: client?.phone ?? '', notes: client?.notes ?? '' });
+  const [initial] = useState(form);
+  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
   const [error, setError] = useState(false);
   const set = (patch: Partial<typeof form>) => setForm((p) => ({ ...p, ...patch }));
 
@@ -54,7 +56,7 @@ function Inner({ onClose, client, onSaved }: ClientSheetProps) {
   };
 
   return (
-    <Sheet open onClose={onClose} title={client ? t('editClient') : t('newClient')} onSubmit={submit}>
+    <Sheet open onClose={onClose} title={client ? t('editClient') : t('newClient')} onSubmit={submit} dirty={dirty}>
       <div className="pf-form-section pf-stack clients-form">
         <Field label={tc('name')} error={error ? tc('required') : undefined}>
           <TextInput value={form.name} onChange={(e) => set({ name: e.target.value })} data-autofocus="" />

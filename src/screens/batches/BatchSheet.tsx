@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { today as todayFn } from '../../domain/dates';
 import type { Batch, ISODate, Id } from '../../domain/types';
-import { useT } from '../../i18n';
+import { unitFor, useFormat, useT } from '../../i18n';
 import { navigate } from '../../router';
 import { useActions, useData } from '../../state/store';
 import { Button, DateField, Field, Icon, Select, Sheet, TextArea, TextInput, useConfirm, useToast } from '../../ui';
@@ -42,6 +42,9 @@ function BatchSheetInner({ onClose, batch, defaultProductId, onSaved, today: tod
     const f = batchForm(undefined, { productId, producedOn: today });
     return { ...f, code: suggest(f) };
   });
+  const [initial] = useState(form);
+  const dirty = JSON.stringify(form) !== JSON.stringify(initial);
+  const lang = useFormat().lang;
   const [codeTouched, setCodeTouched] = useState(!!batch);
   const [submitted, setSubmitted] = useState(false);
 
@@ -106,7 +109,7 @@ function BatchSheetInner({ onClose, batch, defaultProductId, onSaved, today: tod
   ) : undefined;
 
   return (
-    <Sheet open onClose={onClose} title={batch ? t('editTitle') : t('addTitle')} onSubmit={submit} footer={footer} className="batches-sheet">
+    <Sheet open onClose={onClose} title={batch ? t('editTitle') : t('addTitle')} onSubmit={submit} footer={footer} className="batches-sheet" dirty={dirty}>
       <div className="pf-form-section">
         <Field label={tc('product')} error={errText('productId')} hint={activeProducts.length === 0 ? t('noProductsForBatch') : undefined}>
           <Select
@@ -120,7 +123,7 @@ function BatchSheetInner({ onClose, batch, defaultProductId, onSaved, today: tod
           <Field label={t('produced')} error={errText('producedOn')}>
             <DateField value={form.producedOn} onChange={(producedOn) => update({ producedOn })} />
           </Field>
-          <Field label={t('quantityProduced')} error={errText('quantity')} hint={product ? t('quantityHint', { unit: product.unit }) : undefined}>
+          <Field label={t('quantityProduced')} error={errText('quantity')} hint={product ? t('quantityHint', { unit: unitFor(product, 2, lang) }) : undefined}>
             <TextInput inputMode="numeric" className="num" value={form.quantity} onChange={(e) => update({ quantity: e.target.value })} data-autofocus={batch ? undefined : true} />
           </Field>
         </div>

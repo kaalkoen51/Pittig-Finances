@@ -1,8 +1,8 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { Combobox, Field, MoneyInput, Sheet, TextInput } from './index';
+import { Combobox, ConfirmProvider, Field, MoneyInput, Sheet, TextInput } from './index';
 
 describe('MoneyInput', () => {
   it('emits cents for Dutch input and reformats on blur', async () => {
@@ -80,6 +80,28 @@ describe('Sheet', () => {
     await userEvent.type(screen.getByLabelText('Naam'), 'x{Enter}');
     expect(onSubmit).toHaveBeenCalledTimes(1);
     await userEvent.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('asks before discarding a dirty form and ignores backdrop clicks (UX review #1)', async () => {
+    const onClose = vi.fn();
+    render(
+      <ConfirmProvider>
+        <Sheet open dirty title="Nieuwe verkoop" onClose={onClose} onSubmit={() => {}}>
+          <Field label="Naam">
+            <TextInput />
+          </Field>
+        </Sheet>
+      </ConfirmProvider>,
+    );
+    fireEvent.mouseDown(document.querySelector('.pf-scrim')!);
+    expect(onClose).not.toHaveBeenCalled();
+    await userEvent.keyboard('{Escape}');
+    const ask = await screen.findByRole('alertdialog', { name: 'Wijzigingen weggooien?' });
+    await userEvent.click(within(ask).getByRole('button', { name: 'Verder invullen' }));
+    expect(onClose).not.toHaveBeenCalled();
+    await userEvent.click(screen.getByRole('button', { name: 'Annuleer' }));
+    await userEvent.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Weggooien' }));
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

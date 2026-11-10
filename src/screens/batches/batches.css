@@ -6,7 +6,7 @@
 }
 .batches-product__header {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: flex-end;
   justify-content: space-between;
   gap: var(--s-1);
@@ -29,11 +29,19 @@
   color: var(--label-2);
 }
 .batches-none {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--s-1);
   margin: 0;
-  padding: var(--s-2);
+  padding: var(--s-1) var(--s-1) var(--s-1) var(--s-2);
   border-radius: var(--radius);
   background: var(--bg-elevated);
   font-size: var(--text-md);
+}
+.batches-endactions {
+  align-items: center;
 }
 .batches-grid {
   display: grid;
@@ -146,6 +154,9 @@
   display: none;
 }
 @media (max-width: 759.98px) {
+  .batches-subtitle {
+    display: none;
+  }
   .batches-addcost--long {
     display: none;
   }
@@ -162,3 +173,4 @@
 .batches-sheet .pf-form-section > * + * {
   margin-top: var(--s-2);
 }
+.batches-stats dd { white-space: nowrap; }
