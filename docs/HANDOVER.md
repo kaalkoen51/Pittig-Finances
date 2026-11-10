@@ -43,6 +43,10 @@ built on your own PC.
 To try a build without making a release, go to **Actions → Windows installer →
 Run workflow**. The `.exe` is then attached to the run under "Artifacts".
 
+You can also release without touching git: in the same **Run workflow** box, type
+a version such as `1.0.1` in the "Version" field. The workflow then builds the
+installer and publishes it as Release `v1.0.1`, exactly like a tag would.
+
 ### 1.3 Test it on your own Windows PC first
 
 Install it, then run through this checklist:
