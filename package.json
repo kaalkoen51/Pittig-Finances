@@ -4,6 +4,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Simple finances for a small product business",
+  "author": "Pittig",
   "type": "module",
   "main": "dist-electron/main.cjs",
   "scripts": {

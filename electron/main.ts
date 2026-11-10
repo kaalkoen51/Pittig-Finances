@@ -11,6 +11,7 @@ import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, screen, session
 import { autoUpdater } from 'electron-updater';
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
+import { parseAppData } from '../src/domain/migrate';
 import { IPC, type PittigBridgeInfo } from '../src/storage/electronApi';
 import type { BackupInfo, UpdateCheckResult } from '../src/storage/types';
 import {
@@ -25,9 +26,13 @@ import {
   readLive,
   withRetry,
 } from './fsStore';
+import { CLOSE_TIMEOUT_RESULT, readCloseReady, unsavedDialog, type CloseReadyPayload } from './closeGuard';
 import { DEFAULT_SIZE, MIN_SIZE, readWindowState, restoreBounds, writeWindowState } from './windowState';
 
 const APP_NAME = 'Pittig Finances';
+
+/** Same parse + migrate + validate as the renderer. */
+const isValidData = (text: string) => parseAppData(text).ok;
 const CLOSE_TIMEOUT_MS = 3000;
 
 const devServerUrl = process.argv.find((a) => a.startsWith('--dev-server-url='))?.slice('--dev-server-url='.length);
@@ -72,7 +77,8 @@ function serial<T>(fn: () => Promise<T>): Promise<T> {
 
 async function ensureDailyBackup(): Promise<void> {
   try {
-    if (!(await hasDailyBackup(backupDir()))) await makeBackup(dataPath(), backupDir(), 'daily', new Date(), { onlyValidJson: true });
+    // Only a file that passes the app's own validation may become "the latest backup" (review #4).
+    if (!(await hasDailyBackup(backupDir()))) await makeBackup(dataPath(), backupDir(), 'daily', new Date(), { validate: isValidData, onInvalid: 'skip' });
   } catch (e) {
     console.error('daily backup failed', e);
   }
@@ -171,10 +177,20 @@ function createWindow(): void {
     if (closing) return;
     closing = true;
     void writeWindowState(windowStatePath(), { bounds: win.getNormalBounds(), maximized: win.isMaximized() });
-    void requestRendererFlush(win).finally(() => {
-      allowClose = true;
-      if (!win.isDestroyed()) win.close();
-    });
+    void requestRendererFlush(win)
+      .then(async (r) => {
+        // Unsaved changes: ask instead of silently losing them.
+        if (!r.saved && !win.isDestroyed() && !(await confirmCloseUnsaved(win, r))) {
+          closing = false;
+          return;
+        }
+        allowClose = true;
+        if (!win.isDestroyed()) win.close();
+      })
+      .catch(() => {
+        allowClose = true;
+        if (!win.isDestroyed()) win.close();
+      });
   });
   win.on('closed', () => {
     if (mainWindow === win) mainWindow = null;
@@ -184,25 +200,34 @@ function createWindow(): void {
   else void win.loadFile(path.join(__dirname, '..', 'dist', 'index.html'));
 }
 
-/** Ask the renderer to flush pending saves; resolves on 'close-ready' or after 3 s. */
-function requestRendererFlush(win: BrowserWindow): Promise<void> {
-  if (win.isDestroyed() || win.webContents.isCrashed()) return Promise.resolve();
-  return new Promise<void>((resolve) => {
-    const onReady = (e: Electron.IpcMainEvent) => {
-      if (e.sender === win.webContents) done();
+/** true = close anyway. */
+async function confirmCloseUnsaved(win: BrowserWindow, r: CloseReadyPayload): Promise<boolean> {
+  const { response } = await dialog.showMessageBox(win, unsavedDialog(tr, r));
+  return response === 1;
+}
+
+/** Ask the renderer to flush pending saves; resolves on 'close-ready' (with its result) or after 3 s. */
+function requestRendererFlush(win: BrowserWindow): Promise<CloseReadyPayload> {
+  if (win.isDestroyed() || win.webContents.isCrashed()) return Promise.resolve({ saved: true });
+  return new Promise<CloseReadyPayload>((resolve) => {
+    const onReady = (e: Electron.IpcMainEvent, payload?: unknown) => {
+      if (e.sender === win.webContents) done(readCloseReady(payload));
     };
-    const timer = setTimeout(done, CLOSE_TIMEOUT_MS);
-    function done() {
+    const timer = setTimeout(() => done(CLOSE_TIMEOUT_RESULT), CLOSE_TIMEOUT_MS);
+    let finished = false;
+    function done(result: CloseReadyPayload) {
+      if (finished) return;
+      finished = true;
       clearTimeout(timer);
       ipcMain.removeListener(IPC.closeReady, onReady);
       // Wait for in-flight main-side writes too.
-      void fileChain.then(() => resolve());
+      void fileChain.then(() => resolve(result));
     }
     ipcMain.on(IPC.closeReady, onReady);
     try {
       win.webContents.send(IPC.beforeClose);
     } catch {
-      done();
+      done({ saved: true });
     }
   });
 }
@@ -249,7 +274,8 @@ function registerIpc(): void {
   handle(IPC.backupNow, (reason: unknown) =>
     serial(async (): Promise<BackupInfo> => {
       const r = isBackupReason(reason) ? reason : 'manual';
-      const info = await makeBackup(dataPath(), backupDir(), r);
+      // An invalid live file (e.g. before restoring in recovery mode) is kept as "damaged", not as a backup.
+      const info = await makeBackup(dataPath(), backupDir(), r, new Date(), { validate: isValidData });
       // No live file yet (first run): nothing to back up.
       return info ?? { id: '', createdAt: new Date().toISOString(), reason: r, sizeBytes: 0 };
     }),
@@ -361,7 +387,10 @@ async function promptRestart(version: string): Promise<void> {
   });
   if (response !== 0) return;
   try {
-    if (mainWindow && !mainWindow.isDestroyed()) await requestRendererFlush(mainWindow);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      const r = await requestRendererFlush(mainWindow);
+      if (!r.saved && !(await confirmCloseUnsaved(mainWindow, r))) return; // installs on next quit
+    }
     // Skip the close handshake (already flushed) and install silently, then relaunch.
     mainWindow?.removeAllListeners('close');
     autoUpdater.quitAndInstall(true, true);

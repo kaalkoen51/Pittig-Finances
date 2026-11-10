@@ -105,6 +105,22 @@ describe('allocatePayments (FIFO)', () => {
     expect(clientSummaries(d, REF).get('c1')).toMatchObject({ sold: 1000, received: 600, outstanding: 400 });
   });
 
+  it('applies a refund without sale to targeted payments, newest sale first (review #7)', () => {
+    const d = base();
+    d.sales = [sale('s1', '2026-01-01', 5000, 'c1')];
+    d.payments = [pay('p1', '2026-01-02', 5000, 'c1', 's1'), pay('p2', '2026-01-03', -5000, 'c1')];
+    expect(allocatePayments(d, REF).get('s1')).toMatchObject({ paid: 0, open: 5000, status: 'open' });
+    expect(clientSummaries(d, REF).get('c1')!.outstanding).toBe(5000);
+
+    d.sales = [sale('s1', '2026-01-01', 1000, 'c1'), sale('s2', '2026-02-01', 1000, 'c1')];
+    d.payments = [pay('p1', '2026-02-02', 1000, 'c1', 's1'), pay('p2', '2026-02-02', 1000, 'c1', 's2'), pay('p3', '2026-03-01', -1500, 'c1')];
+    const a = allocatePayments(d, REF);
+    expect(a.get('s2')).toMatchObject({ paid: 0, status: 'open' });
+    expect(a.get('s1')).toMatchObject({ paid: 500, status: 'partial' });
+    const open = (a.get('s1')!.open + a.get('s2')!.open);
+    expect(open).toBe(clientSummaries(d, REF).get('c1')!.outstanding);
+  });
+
   it('flags overdue open sales', () => {
     const d = base();
     d.sales = [sale('s1', '2026-01-10', 1000, 'c1', { dueDate: '2026-03-01' }), sale('s2', '2026-01-10', 1000, 'c1', { dueDate: '2026-04-30' })];

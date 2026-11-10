@@ -91,6 +91,12 @@ export interface Payment {
   amount: Cents;
   method?: PaymentMethod;
   notes?: string;
+  /**
+   * true = created by the sale form's "Paid already" toggle. Only such payments are changed or
+   * removed when the sale is edited; real payments (bank, cash, import) are never rewritten.
+   * Older data has no flag: see saleForm.ts `autoPaymentFor` for the legacy rule.
+   */
+  auto?: boolean;
 }
 
 /** Money out. Unpaid expenses (paidOn === null) are what the business owes. */
@@ -129,7 +135,11 @@ export interface ImportRow {
   amount: Cents;
   /** Where it came from, e.g. the file name "ING-2026-03.csv". */
   source: string;
-  /** `date|amountCents|normalized description|source` – see importing.ts. Used to skip duplicates. */
+  /**
+   * `date|amountCents|normalized description` (+ `#n` for the n-th identical row in one file) – see
+   * importing.ts. Used to skip duplicates across overlapping bank downloads. Rows imported by older
+   * versions still have `|source` appended; dedupe ignores it.
+   */
   fingerprint: string;
   /** Counterparty name as given by the bank, if any. */
   counterparty?: string;
@@ -137,6 +147,8 @@ export interface ImportRow {
   /** What this row was turned into / matched with (status 'done'). */
   linkedId?: Id;
   linkedCollection?: 'payments' | 'expenses' | 'sales';
+  /** true when the linked payment/expense was created from this row (not matched to an existing one). */
+  linkCreated?: boolean;
   importedAt: ISODateTime;
 }
 

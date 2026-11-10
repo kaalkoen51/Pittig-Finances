@@ -4,15 +4,13 @@
  */
 import { contextBridge, ipcRenderer } from 'electron';
 import { IPC, type PittigBridge, type PittigBridgeInfo } from '../src/storage/electronApi';
+import { runCloseCallbacks } from './closeGuard';
 
 const closeCallbacks = new Set<() => Promise<void> | void>();
 
 ipcRenderer.on(IPC.beforeClose, async () => {
-  try {
-    await Promise.all([...closeCallbacks].map((cb) => cb()));
-  } finally {
-    ipcRenderer.send(IPC.closeReady);
-  }
+  // Reports whether the flush succeeded; main asks before closing with unsaved changes.
+  ipcRenderer.send(IPC.closeReady, await runCloseCallbacks(closeCallbacks));
 });
 
 const bridge: PittigBridge = {

@@ -46,6 +46,39 @@ describe('IdbStorage', () => {
     // A backup copies the raw corrupt text so nothing is lost.
     const b = await s.backupNow('pre-restore');
     expect((await s.restoreBackup(b.id)).ok).toBe(false);
+    // review #4: the damaged copy is kept but never offered as a restore candidate.
+    expect((await s.listBackups()).some((x) => x.id === b.id)).toBe(false);
+  });
+
+  it('does not auto-save a migration result without records over stored data (review #1)', async () => {
+    const s = fresh();
+    const v0 = { clients: [], suppliers: [], products: [], batches: [], sales: [], payments: [], expenses: [], categories: [], settings: { businessName: 'X' } };
+    const text = JSON.stringify(v0);
+    const db = await new Promise<IDBDatabase>((res) => {
+      const o = indexedDB.open(`test-db-${n}`, 1);
+      o.onupgradeneeded = () => {
+        o.result.createObjectStore('kv');
+        o.result.createObjectStore('backups', { keyPath: 'id' });
+      };
+      o.onsuccess = () => res(o.result);
+    });
+    await new Promise<void>((res) => {
+      const tx = db.transaction('kv', 'readwrite');
+      tx.objectStore('kv').put({ text, savedAt: '' }, 'data');
+      tx.oncomplete = () => res();
+    });
+    db.close();
+    const r = await s.load();
+    expect(r.status === 'ok' && r.migratedFrom).toBe(0);
+    const db2 = await new Promise<IDBDatabase>((res) => {
+      const o = indexedDB.open(`test-db-${n}`);
+      o.onsuccess = () => res(o.result);
+    });
+    const rec = await new Promise<{ text: string }>((res) => {
+      const g = db2.transaction('kv').objectStore('kv').get('data');
+      g.onsuccess = () => res(g.result as { text: string });
+    });
+    expect(rec.text).toBe(text);
   });
 
   it('imports and migrates an old backup file', async () => {

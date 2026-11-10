@@ -1,9 +1,9 @@
 import { act, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { demoData } from '../domain/fixtures';
-import { serializeAppData } from '../domain/migrate';
+import { emptyData, serializeAppData } from '../domain/migrate';
 import { MemoryStorage } from '../storage/memoryStorage';
-import { StoreProvider, useActions, useAppStatus, useData, useDerived, type Actions } from './store';
+import { isEmptyReplaceError, StoreProvider, useActions, useAppStatus, useData, useDerived, type Actions } from './store';
 
 let actions!: Actions;
 function Probe() {
@@ -128,6 +128,112 @@ describe('StoreProvider', () => {
     expect(screen.getByTestId('status').textContent).toBe('ready');
     expect(s.backups[0]).toMatchObject({ reason: 'pre-restore', text: corrupt });
     expect(s.text).toBe(serializeAppData(demoData('2026-03-31')));
+  });
+
+  it('close reports failure when the flush cannot save (review #5)', async () => {
+    const s = new MemoryStorage(demoData('2026-03-31'));
+    renderWith(s);
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('ready'));
+    act(() => actions.updateSettings({ businessName: 'Heet' }));
+    s.failSaves = new Error('EPERM: locked');
+    let flushed: boolean | undefined;
+    await act(async () => {
+      await expect(s.close()).rejects.toThrow('EPERM');
+      flushed = await actions.flush();
+    });
+    expect(flushed).toBe(false);
+    s.failSaves = null;
+    await act(async () => {
+      await expect(s.close()).resolves.toBeUndefined();
+    });
+    expect(s.saves.at(-1)!.settings.businessName).toBe('Heet');
+  });
+
+  it('replaceAll refuses an empty dataset over existing data unless allowEmpty (review #1)', async () => {
+    const s = new MemoryStorage(demoData('2026-03-31'));
+    renderWith(s);
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('ready'));
+    let err: unknown;
+    await act(async () => {
+      await actions.replaceAll(emptyData()).catch((e: unknown) => (err = e));
+    });
+    expect(isEmptyReplaceError(err)).toBe(true);
+    expect(screen.getByTestId('clients').textContent).toBe('4');
+    expect(s.backups).toHaveLength(0);
+    await act(async () => {
+      await actions.replaceAll(emptyData(), { allowEmpty: true });
+    });
+    expect(screen.getByTestId('clients').textContent).toBe('0');
+  });
+
+  it('replaceAll refuses an empty dataset over unreadable data in recovery too (review #1)', async () => {
+    const s = new MemoryStorage('{"version":1,"clients":[');
+    renderWith(s);
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('recovery'));
+    await act(async () => {
+      await expect(actions.replaceAll(emptyData(), { backupReason: 'pre-restore' })).rejects.toSatisfy(isEmptyReplaceError);
+    });
+    expect(s.text).toBe('{"version":1,"clients":[');
+  });
+
+  it('replaceAll saves pending edits before the backup and autosave never writes the old data in between (review #10)', async () => {
+    const s = new MemoryStorage(demoData('2026-03-31'));
+    renderWith(s);
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('ready'));
+    act(() => actions.upsert('clients', { id: 'pending', name: 'Pending', archived: false }));
+    const replacement = demoData('2026-03-31');
+    replacement.clients = replacement.clients.slice(0, 1);
+    let flushDuring: Promise<boolean> | undefined;
+    await act(async () => {
+      const p = actions.replaceAll(replacement);
+      flushDuring = actions.flush();
+      await p;
+      await flushDuring;
+    });
+    expect(s.backups[0]!.text).toContain('"pending"');
+    expect(s.saves.at(-1)!.clients).toHaveLength(1);
+    expect(s.text).toBe(serializeAppData(replacement));
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1000);
+    });
+    expect(s.text).toBe(serializeAppData(replacement));
+  });
+
+  it('removeWithUndo restores the item and its import-row link (review #8)', async () => {
+    const d = demoData('2026-03-31');
+    d.importRows[1] = { ...d.importRows[1]!, status: 'done', linkedId: 'demo-e-10', linkedCollection: 'expenses', linkCreated: true };
+    const s = new MemoryStorage(d);
+    renderWith(s);
+    await waitFor(() => expect(screen.getByTestId('status').textContent).toBe('ready'));
+    let undo: (() => void) | null = null;
+    act(() => {
+      undo = actions.removeWithUndo('expenses', 'demo-e-10');
+    });
+    await act(async () => {
+      await actions.flush();
+    });
+    expect(s.saves.at(-1)!.importRows[1]).toMatchObject({ status: 'todo' });
+    act(() => undo!());
+    await act(async () => {
+      await actions.flush();
+    });
+    const saved = s.saves.at(-1)!;
+    expect(saved.expenses.some((e) => e.id === 'demo-e-10')).toBe(true);
+    expect(saved.importRows[1]).toEqual(d.importRows[1]);
+    // A sale's payments get their saleId back; protected items are refused.
+    act(() => {
+      undo = actions.removeWithUndo('sales', 'demo-sale-1');
+    });
+    act(() => undo!());
+    await act(async () => {
+      await actions.flush();
+    });
+    expect(s.saves.at(-1)!.payments.find((p) => p.id === 'demo-pay-1')!.saleId).toBe('demo-sale-1');
+    let refused: unknown = 'x';
+    act(() => {
+      refused = actions.removeWithUndo('clients', 'demo-c-toko');
+    });
+    expect(refused).toBeNull();
   });
 
   it('replaceAll rejects invalid data', async () => {

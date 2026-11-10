@@ -1,4 +1,4 @@
-import { act, render, screen, within } from '@testing-library/react';
+import { act, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it } from 'vitest';
 import App from '../../App';
@@ -48,6 +48,27 @@ describe('Expenses screen', () => {
     await user.click(screen.getByRole('radio', { name: /Nog te betalen/ }));
     expect(screen.queryByRole('button', { name: /Huur keuken/ })).toBeNull();
     expect(screen.getByText('150 potten met deksel')).toBeInTheDocument();
+  });
+
+  it('undo of a delete also restores the import row link (review #8)', async () => {
+    const data = demoData();
+    const imp = data.importRows[1]!;
+    data.importRows[1] = { ...imp, status: 'done', linkedId: 'demo-e-10', linkedCollection: 'expenses', linkCreated: true };
+    const storage = new MemoryStorage(data);
+    window.location.hash = '#/expenses?edit=demo-e-10';
+    const user = userEvent.setup();
+    render(<App storage={storage} />);
+    const dialog = await screen.findByRole('dialog', { name: 'Uitgave wijzigen' });
+    await user.click(within(dialog).getByRole('button', { name: /Verwijder/ }));
+    await user.click(within(await screen.findByRole('alertdialog')).getByRole('button', { name: 'Verwijder' }));
+    const read = () => JSON.parse(storage.text!) as typeof data;
+    await waitFor(() => expect(read().importRows.find((r) => r.id === imp.id)!.status).toBe('todo'));
+    await user.click(await screen.findByRole('button', { name: 'Ongedaan maken' }));
+    await waitFor(() => {
+      const d = read();
+      expect(d.expenses.some((e) => e.id === 'demo-e-10')).toBe(true);
+      expect(d.importRows.find((r) => r.id === imp.id)).toMatchObject({ status: 'done', linkedId: 'demo-e-10', linkedCollection: 'expenses', linkCreated: true });
+    });
   });
 
   it('opens an existing expense from ?edit=<id>', async () => {

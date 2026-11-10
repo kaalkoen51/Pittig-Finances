@@ -2,6 +2,7 @@
  * Windows storage: thin wrapper over `window.pittig` (electron/preload.ts).
  * Owned by the Electron agent (2d) from here on; the contract is src/storage/types.ts + electronApi.ts.
  */
+import { hasUserContent } from '../domain/calc';
 import { today } from '../domain/dates';
 import { parseAppData, serializeAppData } from '../domain/migrate';
 import type { AppData } from '../domain/types';
@@ -22,7 +23,9 @@ export class ElectronStorage implements Storage {
     if (!r.ok) return { status: 'corrupt', error: r.error };
     if (r.migratedFrom !== undefined) {
       await this.api.backupNow('pre-migration');
-      await this.save(r.data);
+      // Never auto-write a migration result without records over an existing file (review #1):
+      // the store saves it later only after a real edit.
+      if (hasUserContent(r.data)) await this.save(r.data);
       return { status: 'ok', data: r.data, migratedFrom: r.migratedFrom };
     }
     return { status: 'ok', data: r.data };
@@ -104,7 +107,9 @@ export class ElectronStorage implements Storage {
   onBeforeClose(cb: () => Promise<void> | void): () => void {
     const off = this.api.onBeforeClose(cb);
     const handler = () => {
-      void cb();
+      void Promise.resolve()
+        .then(cb)
+        .catch(() => undefined);
     };
     window.addEventListener('beforeunload', handler);
     return () => {

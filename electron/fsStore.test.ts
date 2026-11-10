@@ -16,6 +16,9 @@ import {
   readLive,
   withRetry,
 } from './fsStore';
+import { emptyData, parseAppData, serializeAppData } from '../src/domain/migrate';
+
+const isValidData = (t: string) => parseAppData(t).ok;
 
 let dir: string;
 let live: string;
@@ -129,8 +132,35 @@ describe('backups', () => {
 
   it('can skip backing up a damaged file (automatic daily backup)', async () => {
     await atomicWrite(live, '{"version":1, "clients": [tru');
-    expect(await makeBackup(live, backups, 'daily', new Date(), { onlyValidJson: true })).toBeNull();
+    expect(await makeBackup(live, backups, 'daily', new Date(), { validate: isValidData, onInvalid: 'skip' })).toBeNull();
     expect(await listBackups(backups)).toEqual([]);
+  });
+
+  it('daily backup validates with parseAppData, not just JSON.parse (review #4)', async () => {
+    // Valid JSON but not valid Pittig data: must not become "the latest backup".
+    await atomicWrite(live, '{"version":1,"clients":"oops"}');
+    expect(await makeBackup(live, backups, 'daily', at('2026-03-12T08:00:00'), { validate: isValidData, onInvalid: 'skip' })).toBeNull();
+    await atomicWrite(live, '{"name":"not pittig"}');
+    expect(await makeBackup(live, backups, 'daily', at('2026-03-12T08:00:00'), { validate: isValidData, onInvalid: 'skip' })).toBeNull();
+    expect(await listBackups(backups)).toEqual([]);
+    await atomicWrite(live, serializeAppData(emptyData()));
+    expect(await makeBackup(live, backups, 'daily', at('2026-03-12T08:00:00'), { validate: isValidData, onInvalid: 'skip' })).not.toBeNull();
+    expect(await listBackups(backups)).toHaveLength(1);
+  });
+
+  it('keeps a pre-restore copy of an invalid live file under a "damaged" name, never listed (review #4)', async () => {
+    await fs.mkdir(backups, { recursive: true });
+    await atomicWrite(path.join(backups, 'pittig-backup-2026-03-11.json'), serializeAppData(emptyData()));
+    await atomicWrite(live, '{corrupt');
+    const info = await makeBackup(live, backups, 'pre-restore', at('2026-03-12T10:00:00'), { validate: isValidData });
+    expect(info?.id).toBe('pittig-damaged-2026-03-12-100000-pre-restore.json');
+    expect(await fs.readFile(path.join(backups, info!.id), 'utf8')).toBe('{corrupt');
+    const list = await listBackups(backups);
+    expect(list.map((b) => b.id)).toEqual(['pittig-backup-2026-03-11.json']);
+    await expect(readBackup(backups, info!.id)).rejects.toThrow();
+    // A second one in the same second gets its own name.
+    const again = await makeBackup(live, backups, 'pre-restore', at('2026-03-12T10:00:00'), { validate: isValidData });
+    expect(again?.id).toBe('pittig-damaged-2026-03-12-100000-pre-restore-2.json');
   });
 
   it('makes one daily backup per day and keeps the first one', async () => {

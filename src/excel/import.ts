@@ -28,9 +28,15 @@ export interface BuildResult {
 /**
  * Build ImportRows from parsed rows and drop those already present. Identical transactions inside
  * one file (e.g. two equal market fees on one day) are kept apart by an occurrence suffix "#2" on
- * the fingerprint, so re-importing the same file still skips all of them.
+ * the fingerprint, so re-importing the same file still skips all of them. The file name is not part
+ * of the fingerprint, so overlapping downloads from the bank skip the rows they share.
  */
-export function buildImportRows(parsed: ParsedRow[], source: string, existing: readonly Pick<ImportRow, 'fingerprint'>[], now: Date = new Date()): BuildResult {
+export function buildImportRows(
+  parsed: ParsedRow[],
+  source: string,
+  existing: readonly (Pick<ImportRow, 'fingerprint'> & Partial<Pick<ImportRow, 'date' | 'amount' | 'description'>>)[],
+  now: Date = new Date(),
+): BuildResult {
   const src = normalizeSource(source);
   const importedAt = now.toISOString();
   const seen = new Map<string, number>();
@@ -42,7 +48,7 @@ export function buildImportRows(parsed: ParsedRow[], source: string, existing: r
       continue;
     }
     const description = p.description.trim();
-    const base = importFingerprint({ date: p.date, amount: p.amount, description, source: src });
+    const base = importFingerprint({ date: p.date, amount: p.amount, description });
     const n = (seen.get(base) ?? 0) + 1;
     seen.set(base, n);
     const row: ImportRow = {

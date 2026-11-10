@@ -149,9 +149,10 @@ function ExpenseSheetInner({ onClose, expense, defaults, title, onSaved, today: 
   const remove = async () => {
     if (!expense) return;
     if (!(await confirm({ title: t('deleteTitle'), message: tc('deleteMessage'), destructive: true, confirmLabel: tc('delete') }))) return;
-    actions.remove('expenses', expense.id);
+    // Undo also re-links the bank import row that this expense was sorted from.
+    const undo = actions.removeWithUndo('expenses', expense.id);
     onClose();
-    toast.show(t('deletedToast'), { action: { label: tc('undo'), onClick: () => actions.upsert('expenses', expense) } });
+    toast.show(t('deletedToast'), undo ? { action: { label: tc('undo'), onClick: undo } } : undefined);
   };
 
   return (

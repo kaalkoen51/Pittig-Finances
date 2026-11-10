@@ -5,6 +5,7 @@
  *   backups  – keyPath 'id' → { id, createdAt, reason, text, sizeBytes }
  * Daily backup on first load of the day (keep 30), other backups keep 20.
  */
+import { hasUserContent } from '../domain/calc';
 import { today } from '../domain/dates';
 import { newId } from '../domain/ids';
 import { parseAppData, serializeAppData } from '../domain/migrate';
@@ -27,6 +28,8 @@ interface DataRecord {
 }
 interface BackupRecord extends BackupInfo {
   text: string;
+  /** Copy of stored data that failed validation (e.g. before a restore in recovery mode). Never listed. */
+  damaged?: true;
 }
 
 function req<T>(r: IDBRequest<T>): Promise<T> {
@@ -90,7 +93,8 @@ export class IdbStorage implements Storage {
     if (!backups.some((b) => b.reason === 'daily' && b.createdAt.slice(0, 10) === day)) await this.backupNow('daily');
     if (r.migratedFrom !== undefined) {
       await this.backupNow('pre-migration');
-      await this.save(r.data);
+      // Never auto-write a migration result without records over existing data (review #1).
+      if (hasUserContent(r.data)) await this.save(r.data);
       return { status: 'ok', data: r.data, migratedFrom: r.migratedFrom };
     }
     return { status: 'ok', data: r.data };
@@ -111,18 +115,20 @@ export class IdbStorage implements Storage {
     const text = rec?.text ?? serializeAppData(emptyPlaceholder());
     const createdAt = new Date().toISOString();
     const backup: BackupRecord = { id: `${createdAt}-${reason}-${newId().slice(0, 8)}`, createdAt, reason, text, sizeBytes: text.length };
+    if (!parseAppData(text).ok) backup.damaged = true;
     const db = await this.db();
     const tx = db.transaction(BACKUPS, 'readwrite');
     tx.objectStore(BACKUPS).put(backup);
     await txDone(tx);
     await this.prune();
-    const { text: _t, ...info } = backup;
+    const { text: _t, damaged: _d, ...info } = backup;
     return info;
   }
 
+  /** Restorable backups, newest first (damaged copies are left out and never pruned). */
   private async allBackups(): Promise<BackupRecord[]> {
     const db = await this.db();
-    const all = (await req(db.transaction(BACKUPS, 'readonly').objectStore(BACKUPS).getAll())) as BackupRecord[];
+    const all = ((await req(db.transaction(BACKUPS, 'readonly').objectStore(BACKUPS).getAll())) as BackupRecord[]).filter((b) => !b.damaged);
     return all.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
   }
 
@@ -139,7 +145,7 @@ export class IdbStorage implements Storage {
   }
 
   async listBackups(): Promise<BackupInfo[]> {
-    return (await this.allBackups()).map(({ text: _t, ...info }) => info);
+    return (await this.allBackups()).map(({ text: _t, damaged: _d, ...info }) => info);
   }
 
   async restoreBackup(id: string): Promise<RestoreResult> {
@@ -173,7 +179,9 @@ export class IdbStorage implements Storage {
   onBeforeClose(cb: () => Promise<void> | void): () => void {
     this.closeCbs.add(cb);
     const handler = () => {
-      void cb();
+      void Promise.resolve()
+        .then(cb)
+        .catch(() => undefined);
     };
     window.addEventListener('pagehide', handler);
     window.addEventListener('beforeunload', handler);

@@ -23,17 +23,17 @@ Every screen may add its own CSS file (`src/screens/<name>/<name>.css`, imported
 - **Dates** = `'YYYY-MM-DD'` strings (`ISODate`), compare as strings. `today()` from `domain/dates`.
 - **IDs** = `newId()` (UUID). Optional fields are *omitted* when empty, never `''`/`undefined` values.
 - **Delete vs archive**: clients, suppliers, products, batches, categories: if `isReferenced(c,id)` show Archive instead of Delete (`remove` returns `false` and does nothing when referenced). `archive('batches', id, v)` sets `closed`.
-- Payments with a client: `Payment.clientId` is required. "Paid already" on a sale with client ⇒ also upsert a `Payment {clientId, saleId, amount: total, date: sale.date}`. Clientless sales are always paid (no payment record).
+- Payments with a client: `Payment.clientId` is required. "Paid already" on a sale with client ⇒ also upsert a `Payment {clientId, saleId, amount: total, date: sale.date, auto: true}`. Only `auto` payments are changed/removed when the sale is edited (legacy unflagged rule in `saleForm.ts autoPaymentFor`). Clientless sales are always paid (no payment record).
 - Remember defaults: `updateSettings({ lastUsed: { clientId } })` (merged).
 - One primary button per view. Dutch default; every visible string through i18n.
 
 ## Domain (`src/domain`, import from `../../domain` or specific files)
-`types.ts` FROZEN: `Client, Supplier, Product, Batch, Sale, SaleItem, Payment, PaymentMethod ('bank'|'cash'|'card'|'other'), Expense (paidOn: ISODate|null), Category, ImportRow (fingerprint, status 'todo'|'done'|'ignored', linkedId?, linkedCollection?, counterparty?, importedAt), Settings (businessName, language, firstRunDone, lastUsed?), AppData (version + 9 collections + settings)`, `CollectionName`, `EntityOf<C>`, `ArchivableCollection`, derived types below.
+`types.ts` FROZEN: `Client, Supplier, Product, Batch, Sale, SaleItem, Payment (auto?: boolean = made by the "Paid already" toggle), PaymentMethod ('bank'|'cash'|'card'|'other'), Expense (paidOn: ISODate|null), Category, ImportRow (fingerprint, status 'todo'|'done'|'ignored', linkedId?, linkedCollection?, linkCreated?: boolean = linked record was created from this row, counterparty?, importedAt), Settings (businessName, language, firstRunDone, lastUsed?), AppData (version + 9 collections + settings)`, `CollectionName`, `EntityOf<C>`, `ArchivableCollection`, derived types below.
 
 `calc.ts` (pure, all take `today` optional default real today):
 ```ts
 lineTotal(item): Cents; saleTotal(sale): Cents
-allocatePayments(data, today?): Map<saleId, SalePaymentInfo{total,paid,open,status:'paid'|'partial'|'open',overdue}>  // targeted first, then FIFO
+allocatePayments(data, today?): Map<saleId, SalePaymentInfo{total,paid,open,status:'paid'|'partial'|'open',overdue}>  // targeted first, then FIFO; a net negative pool (refunds) reduces paid amounts newest sale first
 clientSummaries(data, today?): Map<clientId, ClientSummary{sold,received,outstanding,saleCount,openSaleCount,lastActivity?}>
 clientSummary(data, clientId, today?); totalOwedToYou(data, today?)  // Σ positive balances
 openSalesForClient(data, clientId, today?): {sale, info}[]  // oldest first
@@ -50,8 +50,8 @@ isReferenced(data, collection, id); hasUserContent(data); PROTECTED_COLLECTIONS
 ```
 `money.ts`: `formatMoney(c, lang, {signed?, compact?})` ("€ 1.234,56" / "€1,234.56", minus is "−"), `parseMoney(str|number) → Cents|null` (12,50 · 12.50 · 1.234,56 · 1,234.56 · € 12 · 12,- · (12,50) · -12), `centsToInput(c, lang)`, `eurosToCents(n)`, `formatNumber`, `sumCents`.
 `dates.ts`: `today, toISODate, fromISODate, isISODate, addDays, addMonths, daysBetween, compareDates, monthKey, startOfMonth, endOfMonth, inRange(d, range), periodRange('thisMonth'|'lastMonth'|'thisYear'|'all', ref?), monthRange('YYYY-MM'), formatDate(d, lang, 'short'|'medium'|'long'|'month'), formatMonth, parseDate(str|Date)` (dd-mm-yyyy, d/m/yy, yyyy-mm-dd, yyyymmdd → ISO|null).
-`importing.ts`: `normalizeDescription, importFingerprint({date,amount,description,source}), dedupeImportRows(existing, incoming) → {fresh, duplicates}`.
-`migrate.ts`: `CURRENT_VERSION, emptyData(lang?), defaultCategories(lang?), parseAppData(text) → ParseResult, upgradeAppData(obj), validate(obj), serializeAppData(data)`.
+`importing.ts`: `normalizeDescription, importFingerprint({date,amount,description}) → 'date|amount|normalized description'` (no source file name: overlapping bank downloads must dedupe; `#n` suffix for the n-th identical row in one file), `dedupeKey(row)` (strips the `|source` older versions appended), `dedupeImportRows(existing, incoming) → {fresh, duplicates}`.
+`migrate.ts`: `CURRENT_VERSION, emptyData(lang?), defaultCategories(lang?), parseAppData(text) → ParseResult, upgradeAppData(obj), validate(obj), serializeAppData(data)`. JSON without `version` is corrupt unless the 8 core collections are lists (pre-release v0 draft); migration never drops non-list collections or non-object items silently (→ corrupt). Storage never auto-saves a migration result without records.
 `fixtures.ts`: `demoData(ref = today())` – stable ids `demo-…`; Settings "Load demo data" ⇒ `replaceAll(demoData())`.
 
 ## Store (`src/state/store.tsx`) FROZEN
@@ -64,12 +64,15 @@ useActions(): {
   upsertMany(collection, items): void       // one change, one autosave (imports)
   remove(collection, id): boolean           // false if protected & referenced. Sale removal clears payments' saleId; removing
                                             // sale/payment/expense resets linked import rows to 'todo'
+  removeWithUndo(collection, id): (() => void) | null  // remove + undo fn that restores item, import-row links, sale's payment saleIds
   archive(collection, id, archived): void
   updateSettings(patch): void
-  replaceAll(data, {backupReason?: BackupReason|false}): Promise<void>  // backs up first (default 'pre-replace'), validates,
-                                            // saves immediately, leaves recovery mode; rejects on invalid data
+  replaceAll(data, {backupReason?: BackupReason|false, allowEmpty?}): Promise<void>  // saves pending edits, backs up (default
+                                            // 'pre-replace'), validates, saves immediately, leaves recovery mode; rejects on invalid data;
+                                            // rejects with EmptyReplaceError (isEmptyReplaceError) for a dataset without records over
+                                            // existing/unreadable data unless allowEmpty → use shell/confirmReplace.ts replaceAllConfirmingEmpty
+  flush(): Promise<boolean>                 // false = could not save (autosave waits while replaceAll runs)
   isReferenced(collection, id): boolean
-  flush(): Promise<void>
 }
 useAppStatus(): { status: 'loading'|'ready'|'recovery', lastSavedAt?, saveError?, recoveryError?, migratedFrom?, dirty }
 useStorage(): Storage
@@ -83,7 +86,7 @@ Tests: `<StoreProvider storage={new MemoryStorage(demoData())}>` (from `src/stor
 Web: IndexedDB `pittig-finances` (stores `kv`, `backups`), daily backup (keep 30) + others (keep 20), `navigator.storage.persist()`.
 
 ## Preload API (`src/storage/electronApi.ts`) FROZEN – for 2d
-`window.pittig: PittigBridge` = `info {dataPath, backupDir, appVersion, platform}` (sync via `sendSync(IPC.info)`), `readData() → {exists:false}|{exists:true,text}`, `writeData(text) → {savedAt}` (atomic tmp+rename, retry 5× EBUSY/EPERM, reject non-JSON), `backupNow(reason)`, `listBackups()`, `readBackup(id) → text`, `exportBackupFile(text, name)`, `importBackupFile()`, `saveFile(bytes, name, filters)`, `openDataFolder()`, `checkForUpdates()` (never rejects), `onBeforeClose(cb)`. Channel names in `IPC`. `electron/preload.ts` is already complete; `electron/main.ts` is a stub (window only). Main makes the 'daily' backup at startup, and on close sends `IPC.beforeClose`, waits for `IPC.closeReady` (≤3 s).
+`window.pittig: PittigBridge` = `info {dataPath, backupDir, appVersion, platform}` (sync via `sendSync(IPC.info)`), `readData() → {exists:false}|{exists:true,text}`, `writeData(text) → {savedAt}` (atomic tmp+rename, retry 5× EBUSY/EPERM, reject non-JSON), `backupNow(reason)`, `listBackups()`, `readBackup(id) → text`, `exportBackupFile(text, name)`, `importBackupFile()`, `saveFile(bytes, name, filters)`, `openDataFolder()`, `checkForUpdates()` (never rejects), `onBeforeClose(cb)` (a rejecting cb = not saved). Channel names in `IPC`. `electron/preload.ts` is already complete; `electron/main.ts` is a stub (window only). Main makes the 'daily' backup at startup (only if the live file passes `parseAppData`), and on close sends `IPC.beforeClose`, waits for `IPC.closeReady` with payload `{saved, error?}` (≤3 s; see `electron/closeGuard.ts`); not saved or timeout ⇒ dialog "Niet opgeslagen – toch sluiten?". A backup request while the live file is invalid stores `pittig-damaged-…json` (never listed/offered). Recovery offers the newest backup that passes validation.
 
 ## i18n (`src/i18n`)
 Area file `src/i18n/<area>.ts`: `export const nl = {...} as const; export const en: Translations<typeof nl> = {...}` (same keys – a test enforces it). Areas: common, overview, sales, clients, expenses, suppliers, batches, import, settings.

@@ -26,8 +26,8 @@ describe('buildImportRows / dedupe', () => {
     expect(r.invalid).toBe(1);
     expect(r.duplicates).toBe(0);
     expect(r.rows).toHaveLength(3);
-    expect(r.rows[0]).toMatchObject({ date: '2026-03-01', amount: 1250, status: 'todo', counterparty: 'Toko Sari', source: 'ING.csv', fingerprint: '2026-03-01|1250|factuur 1|ING.csv' });
-    expect(r.rows[2]!.fingerprint).toBe('2026-03-02|-500|marktgeld|ING.csv#2');
+    expect(r.rows[0]).toMatchObject({ date: '2026-03-01', amount: 1250, status: 'todo', counterparty: 'Toko Sari', source: 'ING.csv', fingerprint: '2026-03-01|1250|factuur 1' });
+    expect(r.rows[2]!.fingerprint).toBe('2026-03-02|-500|marktgeld#2');
   });
 
   it('skips everything when the same file is imported again (also as "ING (1).csv")', () => {
@@ -40,8 +40,29 @@ describe('buildImportRows / dedupe', () => {
   it('adds only new rows from an overlapping export', () => {
     const first = buildImportRows(parsed.slice(0, 2), 'ING.csv', []);
     const second = buildImportRows(parsed, 'ING.csv', first.rows);
-    expect(second.rows.map((r) => r.fingerprint)).toEqual(['2026-03-02|-500|marktgeld|ING.csv#2']);
+    expect(second.rows.map((r) => r.fingerprint)).toEqual(['2026-03-02|-500|marktgeld#2']);
     expect(second.duplicates).toBe(2);
+  });
+
+  it('skips shared rows of overlapping downloads with different file names (review #3)', () => {
+    const jan = buildImportRows([row({ date: '2026-03-05', amount: -1250, description: 'Makro' })], 'NL01INGB_01-01-2026_31-03-2026.csv', []);
+    const mar = buildImportRows(
+      [row({ date: '2026-03-05', amount: -1250, description: 'Makro' }), row({ date: '2026-04-02', amount: -800, description: 'Makro' })],
+      'NL01INGB_01-03-2026_30-04-2026.csv',
+      jan.rows,
+    );
+    expect(mar.duplicates).toBe(1);
+    expect(mar.rows.map((r) => r.date)).toEqual(['2026-04-02']);
+  });
+
+  it('dedupes against rows stored by older versions (fingerprint with |source) (review #3)', () => {
+    const legacy: ImportRow[] = [
+      { id: 'a', date: '2026-03-02', amount: -500, description: 'Marktgeld', source: 'old.csv', fingerprint: '2026-03-02|-500|marktgeld|old.csv', status: 'done', importedAt: '2026-03-03T00:00:00Z' },
+      { id: 'b', date: '2026-03-02', amount: -500, description: 'Marktgeld', source: 'old.csv', fingerprint: '2026-03-02|-500|marktgeld|old.csv#2', status: 'todo', importedAt: '2026-03-03T00:00:00Z' },
+    ];
+    const r = buildImportRows(parsed, 'new-name.csv', legacy);
+    expect(r.duplicates).toBe(2);
+    expect(r.rows.map((x) => x.description)).toEqual(['Factuur 1']);
   });
 
   it('normalizes browser download suffixes', () => {

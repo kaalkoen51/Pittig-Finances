@@ -53,6 +53,10 @@ describe('parseAppData (corrupt file handling)', () => {
     ['{"version":99}', 'newer app version'],
     ['{"version":"x"}', 'Invalid version'],
     ['{"version":1}', 'clients'],
+    // review #1: JSON without version is only accepted when it looks like a Pittig draft
+    ['{"name":"x"}', 'Not a Pittig data file'],
+    ['{"name":"pittig-finances","dependencies":{}}', 'Not a Pittig data file'],
+    ['{"clients":"oops","sales":{"a":1}}', 'Not a Pittig data file'],
   ])('reports %s as corrupt', (text, msg) => {
     const r = parseAppData(text);
     expect(r.ok).toBe(false);
@@ -94,9 +98,30 @@ describe('migrate', () => {
   });
 });
 
+describe('migrate v0 never drops data silently (review #1)', () => {
+  const lists = { clients: [], suppliers: [], products: [], batches: [], sales: [], payments: [], expenses: [], categories: [] };
+  it('rejects a draft whose optional collection is not a list', () => {
+    const r = parseAppData(JSON.stringify({ ...lists, importRows: { a: 1 } }));
+    expect(r.ok).toBe(false);
+    if (!r.ok) expect(r.error).toContain('importRows');
+  });
+  it('rejects a draft with non-object items instead of filtering them out', () => {
+    const r = parseAppData(JSON.stringify({ ...lists, clients: ['Toko'] }));
+    expect(r.ok).toBe(false);
+  });
+  it('accepts optional auto / linkCreated flags and rejects wrong types', () => {
+    const d = demoData('2026-03-31');
+    d.payments[0]!.auto = true;
+    d.importRows[0]!.linkCreated = true;
+    expect(validate(d).ok).toBe(true);
+    (d.payments[0] as unknown as Record<string, unknown>).auto = 'yes';
+    expect(validate(d).ok).toBe(false);
+  });
+});
+
 describe('import dedupe', () => {
   it('builds fingerprints from normalized description', () => {
-    expect(importFingerprint({ date: '2026-03-01', amount: -1250, description: '  Café   DE Hoek ', source: 'ing.csv' })).toBe('2026-03-01|-1250|cafe de hoek|ing.csv');
+    expect(importFingerprint({ date: '2026-03-01', amount: -1250, description: '  Café   DE Hoek ', source: 'ing.csv' })).toBe('2026-03-01|-1250|cafe de hoek');
   });
   it('skips existing and repeated rows', () => {
     const existing = [{ fingerprint: 'a' }];

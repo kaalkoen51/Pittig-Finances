@@ -6,6 +6,8 @@
  * Backups:   <Documents>/Pittig Finances/Backups/
  *              pittig-backup-YYYY-MM-DD.json                     (daily, keep 30)
  *              pittig-backup-YYYY-MM-DD-HHmmss-<reason>.json     (other reasons, keep 30)
+ *              pittig-damaged-YYYY-MM-DD-HHmmss-<reason>.json    (copy of a live file that failed validation;
+ *                                                                never listed as a restore candidate, never pruned)
  */
 import { promises as fs, constants as fsConstants } from 'node:fs';
 import path from 'node:path';
@@ -40,6 +42,11 @@ export function isBackupReason(v: unknown): v is BackupReason {
 export function backupName(reason: BackupReason, now: Date, n = 1): string {
   if (reason === 'daily') return `pittig-backup-${localDate(now)}.json`;
   return `pittig-backup-${localDate(now)}-${localTime(now)}-${reason}${n > 1 ? `-${n}` : ''}.json`;
+}
+
+/** File name for a copy of a damaged live file (not a backup name: never listed or offered for restore). */
+export function damagedName(reason: BackupReason, now: Date, n = 1): string {
+  return `pittig-damaged-${localDate(now)}-${localTime(now)}-${reason}${n > 1 ? `-${n}` : ''}.json`;
 }
 
 /** Parse a backup file name; null when it is not one of ours (also rejects anything path-like). */
@@ -169,37 +176,40 @@ export async function pruneBackups(dir: string, keepDaily = KEEP_DAILY, keepOthe
   return remove.map((b) => b.id);
 }
 
+export interface MakeBackupOptions {
+  /**
+   * Content check (main passes `parseAppData(text).ok`). When it fails the live file is NOT stored as
+   * a backup: with `onInvalid: 'skip'` nothing is written (daily backup), otherwise (default
+   * 'damaged') it is kept as `pittig-damaged-…json`, which is never offered as a restore candidate.
+   */
+  validate?: (text: string) => boolean;
+  onInvalid?: 'skip' | 'damaged';
+}
+
 /**
- * Copy the live file (raw bytes, even if corrupt) into `dir` as a backup for `reason`.
- * Returns null when there is no live file yet (nothing to back up).
+ * Copy the live file (raw bytes) into `dir` as a backup for `reason`.
+ * Returns null when there is no live file yet (nothing to back up) or a 'skip'ped invalid file.
  * A 'daily' backup is made only once per calendar day (an existing one is kept).
- * `onlyValidJson`: skip (return null) when the live file is not valid JSON – used for the automatic
- * daily backup so a damaged file never becomes "the latest backup" offered in recovery mode.
  */
-export async function makeBackup(
-  liveFile: string,
-  dir: string,
-  reason: BackupReason,
-  now = new Date(),
-  opts: { onlyValidJson?: boolean } = {},
-): Promise<BackupInfo | null> {
+export async function makeBackup(liveFile: string, dir: string, reason: BackupReason, now = new Date(), opts: MakeBackupOptions = {}): Promise<BackupInfo | null> {
   if (!(await exists(liveFile))) return null;
   await fs.mkdir(dir, { recursive: true });
+  const bytes = await withRetry(() => fs.readFile(liveFile));
+  if (opts.validate && !opts.validate(bytes.toString('utf8'))) {
+    if (opts.onInvalid === 'skip') return null;
+    let name = damagedName(reason, now);
+    for (let n = 2; await exists(path.join(dir, name)); n++) name = damagedName(reason, now, n);
+    const full = path.join(dir, name);
+    await atomicWrite(full, bytes, { keepBak: false });
+    return { id: name, createdAt: now.toISOString(), reason, sizeBytes: bytes.length, path: full };
+  }
   let name = backupName(reason, now);
   if (reason === 'daily') {
     if (await exists(path.join(dir, name))) return infoFor(dir, name);
   } else {
     for (let n = 2; await exists(path.join(dir, name)); n++) name = backupName(reason, now, n);
   }
-  const text = await withRetry(() => fs.readFile(liveFile));
-  if (opts.onlyValidJson) {
-    try {
-      JSON.parse(text.toString('utf8'));
-    } catch {
-      return null;
-    }
-  }
-  await atomicWrite(path.join(dir, name), text, { keepBak: false });
+  await atomicWrite(path.join(dir, name), bytes, { keepBak: false });
   await pruneBackups(dir);
   return infoFor(dir, name);
 }

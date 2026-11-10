@@ -10,6 +10,8 @@ export class MemoryStorage implements Storage {
   text: string | null;
   saves: AppData[] = [];
   backups: (BackupInfo & { text: string })[] = [];
+  /** Test helper: when set, save() rejects with this error. */
+  failSaves: Error | null = null;
   private closeCbs = new Set<() => Promise<void> | void>();
 
   constructor(initial?: AppData | string | null) {
@@ -23,6 +25,7 @@ export class MemoryStorage implements Storage {
     return r.migratedFrom !== undefined ? { status: 'ok', data: r.data, migratedFrom: r.migratedFrom } : { status: 'ok', data: r.data };
   }
   async save(data: AppData): Promise<void> {
+    if (this.failSaves) throw this.failSaves;
     this.saves.push(data);
     this.text = serializeAppData(data);
   }

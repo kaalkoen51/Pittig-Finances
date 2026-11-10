@@ -165,7 +165,7 @@ docs/           PLAN.md, HANDOVER.md
   No cost splitting across batches in v1.
 
 **Import**
-- ImportRow gets `fingerprint = date|amountCents|normalized description|source`; duplicates skipped (count shown).
+- ImportRow gets `fingerprint = date|amountCents|normalized description` (+`#n` per identical row in one file; no file name, so overlapping bank downloads dedupe); duplicates skipped (count shown).
 - "To sort" options per row: Payment from client (pick client, optional sale) / Expense (category,
   supplier?, batch?) / **Matches existing** (suggestions: same |amount|, date ±7 days, unlinked) / Ignore.
   Positive amount defaults to payment, negative to expense.

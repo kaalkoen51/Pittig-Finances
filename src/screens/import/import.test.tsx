@@ -87,6 +87,66 @@ describe('To sort screen', () => {
     await waitFor(() => expect(stored(storage).importRows.find((r) => r.id === row.id)).toMatchObject({ status: 'done', linkedId: 'pay-x' }));
     expect(stored(storage).payments).toHaveLength(data.payments.length);
   });
+
+  it('matching a bank row to an unpaid expense marks it paid on the bank date; undo restores it (review #6)', async () => {
+    const data = demoData();
+    const row = data.importRows[1]!; // bol.com −18,99
+    data.expenses.push({ id: 'exp-open', date: row.date, categoryId: 'demo-cat-other', description: 'Trechters', amount: 1899, paidOn: null });
+    const { storage, user } = await setup('#/import', data);
+    const c = card(/bol\.com/);
+    await user.click(within(c).getByRole('radio', { name: 'Bestaat al (1)' }));
+    await user.click(within(c).getByRole('button', { name: 'Koppel' }));
+    await waitFor(() => {
+      const d = stored(storage);
+      expect(d.importRows.find((r) => r.id === row.id)).toMatchObject({ status: 'done', linkedId: 'exp-open' });
+      expect(d.importRows.find((r) => r.id === row.id)!.linkCreated).toBeUndefined();
+      expect(d.expenses.find((e) => e.id === 'exp-open')!.paidOn).toBe(row.date);
+    });
+    await user.click(screen.getByRole('button', { name: 'Ongedaan maken' }));
+    await waitFor(() => {
+      const d = stored(storage);
+      expect(d.expenses.find((e) => e.id === 'exp-open')!.paidOn).toBeNull();
+      expect(d.importRows.find((r) => r.id === row.id)!.status).toBe('todo');
+    });
+  });
+
+  it('reopening a handled row offers to delete the payment it created (default on), with undo (review #9)', async () => {
+    const { storage, user } = await setup();
+    await user.click(within(card(/Café Het Hoekje/)).getByRole('button', { name: 'Bewaar als betaling' }));
+    await waitFor(() => expect(stored(storage).importRows.find((r) => r.id === 'demo-imp-1')).toMatchObject({ status: 'done', linkCreated: true }));
+    const paymentId = stored(storage).importRows.find((r) => r.id === 'demo-imp-1')!.linkedId!;
+    await user.click(screen.getByRole('switch', { name: /Toon afgehandeld/ }));
+    await user.click(screen.getByRole('button', { name: 'Terugzetten' }));
+    const dlg = await screen.findByRole('alertdialog', { name: 'Terugzetten bij te sorteren?' });
+    expect(within(dlg).getByRole('switch', { name: /Ook de gekoppelde betaling verwijderen/ })).toHaveAttribute('aria-checked', 'true');
+    await user.click(within(dlg).getByRole('button', { name: 'Terugzetten' }));
+    await waitFor(() => {
+      const d = stored(storage);
+      expect(d.payments.some((p) => p.id === paymentId)).toBe(false);
+      expect(d.importRows.find((r) => r.id === 'demo-imp-1')).toMatchObject({ status: 'todo' });
+    });
+    await user.click(screen.getAllByRole('button', { name: 'Ongedaan maken' }).at(-1)!);
+    await waitFor(() => {
+      const d = stored(storage);
+      expect(d.payments.some((p) => p.id === paymentId)).toBe(true);
+      expect(d.importRows.find((r) => r.id === 'demo-imp-1')).toMatchObject({ status: 'done', linkedId: paymentId });
+    });
+  });
+
+  it('reopening a row that was matched to an existing payment keeps it by default (review #9)', async () => {
+    const data = demoData();
+    const row = data.importRows[0]!;
+    data.payments.push({ id: 'pay-x', date: row.date, clientId: 'demo-c-hoekje', amount: row.amount, method: 'bank' });
+    data.importRows[0] = { ...row, status: 'done', linkedId: 'pay-x', linkedCollection: 'payments' };
+    const { storage, user } = await setup('#/import', data);
+    await user.click(screen.getByRole('switch', { name: /Toon afgehandeld/ }));
+    await user.click(screen.getByRole('button', { name: 'Terugzetten' }));
+    const dlg = await screen.findByRole('alertdialog');
+    expect(within(dlg).getByRole('switch', { name: /Ook de gekoppelde betaling verwijderen/ })).toHaveAttribute('aria-checked', 'false');
+    await user.click(within(dlg).getByRole('button', { name: 'Terugzetten' }));
+    await waitFor(() => expect(stored(storage).importRows.find((r) => r.id === row.id)!.status).toBe('todo'));
+    expect(stored(storage).payments.some((p) => p.id === 'pay-x')).toBe(true);
+  });
 });
 
 describe('Import wizard', () => {

@@ -108,14 +108,24 @@ export function allocatePayments(data: Pick<AppData, 'sales' | 'payments'>, toda
     }
     for (const s of sales) {
       const total = saleTotal(s);
-      let paid = paidMap.get(s.id) ?? 0;
+      const paid = paidMap.get(s.id) ?? 0;
       if (total > 0 && rest > 0 && paid < total) {
         const add = Math.min(rest, total - paid);
-        paid += add;
+        paidMap.set(s.id, paid + add);
         rest -= add;
       }
-      result.set(s.id, make(s, total, paid));
     }
+    // Net refunds (negative pool, e.g. a refund without a sale) undo payments newest sale first, so
+    // sale statuses agree with the client's outstanding balance.
+    for (let i = sales.length - 1; i >= 0 && rest < 0; i--) {
+      const s = sales[i]!;
+      const paid = paidMap.get(s.id) ?? 0;
+      if (saleTotal(s) <= 0 || paid <= 0) continue;
+      const take = Math.min(paid, -rest);
+      paidMap.set(s.id, paid - take);
+      rest += take;
+    }
+    for (const s of sales) result.set(s.id, make(s, saleTotal(s), paidMap.get(s.id) ?? 0));
   }
   return result;
 }

@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["electron", "src/storage/electronApi.ts", "src/storage/types.ts", "src/domain/types.ts"]
+  "include": ["electron", "src/storage/electronApi.ts", "src/storage/types.ts", "src/domain/types.ts", "src/domain/migrate.ts"]
 }

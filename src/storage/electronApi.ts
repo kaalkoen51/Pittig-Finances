@@ -7,7 +7,9 @@
  *   live data:  app.getPath('userData')/pittig-data.json   (atomic: tmp + rename, retry 5x on EBUSY/EPERM)
  *   backups:    Documents/Pittig Finances/Backups/pittig-backup-YYYY-MM-DD.json (daily, keep 30)
  *               + pittig-backup-YYYY-MM-DD-HHmmss-<reason>.json for non-daily reasons.
- * The main process makes the 'daily' backup itself on startup (copy of the live file, if any).
+ * The main process makes the 'daily' backup itself on startup (copy of the live file, only when it
+ * passes parseAppData). A backup of an invalid live file is stored as pittig-damaged-….json and is
+ * never listed as a restore candidate.
  */
 import type { BackupInfo, BackupReason, UpdateCheckResult } from './types';
 
@@ -52,8 +54,10 @@ export interface PittigBridge {
 
   /**
    * Close handshake: main sends 'pittig:before-close' when the window is closing; preload calls
-   * every registered callback, awaits them, then sends 'pittig:close-ready'. Main waits (max ~3 s)
-   * for that before really closing. Returns an unsubscribe function.
+   * every registered callback, awaits them, then sends 'pittig:close-ready' with
+   * `{ saved: boolean, error?: string }` (a rejecting callback = not saved; see electron/closeGuard.ts).
+   * Main waits (max ~3 s); when not saved (or timed out) it asks "Niet opgeslagen – toch sluiten?".
+   * Returns an unsubscribe function.
    */
   onBeforeClose(cb: () => Promise<void> | void): () => void;
 }

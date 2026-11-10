@@ -79,18 +79,44 @@ describe('buildSaleSave', () => {
 
   it('editing: toggle controls the auto payment (update amount, or remove)', () => {
     const sale: Sale = { id: 's1', date: '2026-11-01', clientId: 'c1', items: [{ productId: 'p1', quantity: 2, unitPrice: 650 }] };
-    const auto: Payment = { id: 'pay1', date: '2026-11-01', clientId: 'c1', saleId: 's1', amount: 1300, method: 'cash' };
+    const auto: Payment = { id: 'pay1', date: '2026-11-01', clientId: 'c1', saleId: 's1', amount: 1300, method: 'cash', auto: true };
     expect(autoPaymentFor(sale, [auto])).toBe(auto);
     const f = saleToForm(sale, [auto]);
     expect(f.paid).toBe(true);
     expect(f.lines[0]!.quantity).toBe('2');
 
     const more = buildSaleSave({ ...f, lines: [{ ...f.lines[0]!, quantity: '3' }] }, { existing: sale, linked: [auto] });
-    expect(more.upsertPayments).toEqual([{ id: 'pay1', date: '2026-11-01', clientId: 'c1', saleId: 's1', amount: 1950, method: 'cash' }]);
+    expect(more.upsertPayments).toEqual([{ id: 'pay1', date: '2026-11-01', clientId: 'c1', saleId: 's1', amount: 1950, method: 'cash', auto: true }]);
 
     const off = buildSaleSave({ ...f, paid: false }, { existing: sale, linked: [auto] });
     expect(off.removePaymentIds).toEqual(['pay1']);
     expect(off.upsertPayments).toEqual([]);
+  });
+
+  it('editing never rewrites or deletes a real payment that equals the total (review #2)', () => {
+    const sale: Sale = { id: 's1', date: '2026-03-01', clientId: 'c', items: [{ productId: 'p', quantity: 10, unitPrice: 500 }] };
+    const bank: Payment = { id: 'pay', date: '2026-03-20', clientId: 'c', saleId: 's1', amount: 5000, method: 'bank', notes: 'from bank' };
+    expect(autoPaymentFor(sale, [bank])).toBeUndefined();
+    expect(canTogglePaid(sale, [bank])).toBe(false);
+    const f = saleToForm(sale, [bank]);
+    expect(f.paid).toBe(false);
+    const plan = buildSaleSave({ ...f, lines: [{ ...f.lines[0]!, quantity: '12' }] }, { existing: sale, linked: [bank] });
+    expect(plan.upsertPayments).toEqual([]);
+    expect(plan.removePaymentIds).toEqual([]);
+    // Even with the toggle forced on, the bank payment stays as it is (a separate auto payment is added).
+    const forced = buildSaleSave({ ...f, paid: true }, { existing: sale, linked: [bank] });
+    expect(forced.removePaymentIds).toEqual([]);
+    expect(forced.upsertPayments.every((p) => p.id !== 'pay' && p.auto === true)).toBe(true);
+  });
+
+  it('new "paid already" payments are marked auto; legacy unmarked toggle payments are still recognised', () => {
+    const plan = buildSaleSave(form({ clientId: 'c1', paid: true }), { id: 's1' });
+    expect(plan.upsertPayments[0]!.auto).toBe(true);
+    const sale: Sale = { id: 's1', date: '2026-11-01', clientId: 'c1', items: [{ productId: 'p1', quantity: 2, unitPrice: 650 }] };
+    const legacy: Payment = { id: 'old', date: '2026-11-01', clientId: 'c1', saleId: 's1', amount: 1300 };
+    expect(autoPaymentFor(sale, [legacy])).toBe(legacy);
+    expect(autoPaymentFor(sale, [{ ...legacy, method: 'bank' }])).toBeUndefined();
+    expect(autoPaymentFor(sale, [{ ...legacy, date: '2026-11-05' }])).toBeUndefined();
   });
 
   it('editing with partial payments: no toggle; payments follow a client change', () => {

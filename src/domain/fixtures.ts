@@ -32,7 +32,7 @@ export function demoData(ref: string = today()): AppData {
       amount,
       source,
       counterparty,
-      fingerprint: importFingerprint({ date, amount, description, source }),
+      fingerprint: importFingerprint({ date, amount, description }),
       status: 'todo',
       importedAt: `${ref}T09:00:00.000Z`,
     };

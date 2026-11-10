@@ -57,25 +57,42 @@ const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !
  * Migration steps: MIGRATIONS[n] upgrades version n → n+1.
  * Version 0 = pre-release drafts without `version` (had settings.currency, Category.kind, no archived flags).
  */
+/** Collections a pre-release (v0) draft must have as lists to be recognised as Pittig data. */
+const V0_REQUIRED = ['clients', 'suppliers', 'products', 'batches', 'sales', 'payments', 'expenses', 'categories'] as const;
+
+class MigrationError extends Error {}
+
 const MIGRATIONS: Record<number, (d: Obj) => Obj> = {
   0: (d) => {
-    const arr = (k: string): Obj[] => (Array.isArray(d[k]) ? (d[k] as unknown[]).filter(isObj) : []);
-    const withArchived = (list: Obj[]) => list.map((x) => ({ ...x, archived: x.archived === true }));
+    // Never drop data silently: a present-but-wrong collection makes the file corrupt (recovery mode),
+    // and non-object items are kept as they are so validation reports them.
+    const arr = (k: string): unknown[] => {
+      if (d[k] === undefined) return [];
+      if (!Array.isArray(d[k])) throw new MigrationError(`${k}: expected a list`);
+      return d[k] as unknown[];
+    };
+    const objs = (k: string, fn: (x: Obj) => Obj) => arr(k).map((x) => (isObj(x) ? fn(x) : x));
+    const withArchived = (k: string) => objs(k, (x) => ({ ...x, archived: x.archived === true }));
     const settingsIn = isObj(d.settings) ? d.settings : {};
     const { currency: _currency, ...settingsRest } = settingsIn;
+    if (d.settings !== undefined && !isObj(d.settings)) throw new MigrationError('settings: expected an object');
     const categories = arr('categories')
-      .filter((c) => c.kind !== 'income')
-      .map(({ kind: _kind, ...c }) => ({ color: '#8E8E93', ...c, archived: c.archived === true }));
+      .filter((c) => !(isObj(c) && c.kind === 'income'))
+      .map((c) => {
+        if (!isObj(c)) return c;
+        const { kind: _kind, ...rest } = c;
+        return { color: '#8E8E93', ...rest, archived: c.archived === true };
+      });
     return {
       ...d,
       version: 1,
-      clients: withArchived(arr('clients')),
-      suppliers: withArchived(arr('suppliers')),
-      products: withArchived(arr('products')),
-      batches: arr('batches').map((b) => ({ ...b, closed: b.closed === true })),
+      clients: withArchived('clients'),
+      suppliers: withArchived('suppliers'),
+      products: withArchived('products'),
+      batches: objs('batches', (b) => ({ ...b, closed: b.closed === true })),
       sales: arr('sales'),
       payments: arr('payments'),
-      expenses: arr('expenses').map((e) => ({ ...e, paidOn: typeof e.paidOn === 'string' ? e.paidOn : null })),
+      expenses: objs('expenses', (e) => ({ ...e, paidOn: typeof e.paidOn === 'string' ? e.paidOn : null })),
       categories,
       importRows: arr('importRows'),
       settings: { ...defaultSettings(), ...settingsRest },
@@ -86,6 +103,11 @@ const MIGRATIONS: Record<number, (d: Obj) => Obj> = {
 /** Upgrade any older shape to CURRENT_VERSION. Does not validate. */
 export function migrate(raw: unknown): { data: unknown; migratedFrom?: number } | { error: string } {
   if (!isObj(raw)) return { error: 'Data is not an object' };
+  if (raw.version === undefined) {
+    // Only a pre-release Pittig draft may lack a version; any other JSON (e.g. a random file) is corrupt.
+    const missing = V0_REQUIRED.filter((k) => !Array.isArray(raw[k]));
+    if (missing.length) return { error: `Not a Pittig data file (no version; missing lists: ${missing.join(', ')})` };
+  }
   let version = raw.version === undefined ? 0 : raw.version;
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 0) return { error: `Invalid version: ${String(raw.version)}` };
   if (version > CURRENT_VERSION) return { error: `Data is from a newer app version (${version}); please update the app` };
@@ -94,7 +116,12 @@ export function migrate(raw: unknown): { data: unknown; migratedFrom?: number } 
   while (version < CURRENT_VERSION) {
     const step = MIGRATIONS[version];
     if (!step) return { error: `No migration from version ${version}` };
-    d = step(d);
+    try {
+      d = step(d);
+    } catch (e) {
+      if (e instanceof MigrationError) return { error: e.message };
+      throw e;
+    }
     version++;
     d.version = version;
   }
@@ -131,7 +158,8 @@ class V {
     const v = o[k];
     if (typeof v !== 'number' || !Number.isFinite(v)) this.fail(`${path}.${k}`, 'expected number');
   }
-  bool(o: Obj, k: string, path: string) {
+  bool(o: Obj, k: string, path: string, opt = false) {
+    if (o[k] === undefined && opt) return;
     if (typeof o[k] !== 'boolean') this.fail(`${path}.${k}`, 'expected true/false');
   }
   oneOf(o: Obj, k: string, path: string, values: readonly unknown[], opt = false) {
@@ -207,6 +235,7 @@ export function validate(raw: unknown): ParseResult {
     v.cents(o, 'amount', p);
     v.oneOf(o, 'method', p, ['bank', 'cash', 'card', 'other'], true);
     v.str(o, 'notes', p, true);
+    v.bool(o, 'auto', p, true);
   });
   v.list(raw, 'expenses', (o, p) => {
     v.date(o, 'date', p);
@@ -233,6 +262,7 @@ export function validate(raw: unknown): ParseResult {
     v.oneOf(o, 'status', p, ['todo', 'done', 'ignored']);
     v.id(o, 'linkedId', p, true);
     v.oneOf(o, 'linkedCollection', p, ['payments', 'expenses', 'sales'], true);
+    v.bool(o, 'linkCreated', p, true);
     v.str(o, 'importedAt', p);
   });
   if (!isObj(raw.settings)) v.fail('settings', 'expected an object');

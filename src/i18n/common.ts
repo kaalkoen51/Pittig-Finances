@@ -113,6 +113,13 @@ export const nl = {
   recoveryNoBackups: 'Er zijn geen back-ups gevonden op dit apparaat.',
   recoveryFailed: 'Terugzetten mislukt: {error}',
   restored: 'Back-up teruggezet',
+  recoveryNoValidBackups: 'Geen van de back-ups op dit apparaat is leesbaar. Zet een back-up uit een bestand terug.',
+  recoveryFileTitle: 'Deze back-up terugzetten?',
+  recoveryFileMessage: 'De gegevens uit dit bestand worden je huidige gegevens. Het beschadigde bestand blijft als kopie bewaard.',
+  recoveryFileConfirm: 'Terugzetten',
+  replaceEmptyTitle: 'Deze back-up is leeg',
+  replaceEmptyMessage: 'Er staan geen klanten, verkopen of uitgaven in. Als je doorgaat, vervangt een lege administratie je huidige gegevens (er wordt eerst een back-up gemaakt).',
+  replaceEmptyConfirm: 'Toch leeg terugzetten',
 } as const;
 
 export const en: Translations<typeof nl> = {
@@ -217,4 +224,11 @@ export const en: Translations<typeof nl> = {
   recoveryNoBackups: 'No backups were found on this device.',
   recoveryFailed: 'Restore failed: {error}',
   restored: 'Backup restored',
+  recoveryNoValidBackups: 'None of the backups on this device can be read. Restore a backup from a file.',
+  recoveryFileTitle: 'Restore this backup?',
+  recoveryFileMessage: 'The data in this file becomes your current data. The damaged file is kept as a copy.',
+  recoveryFileConfirm: 'Restore',
+  replaceEmptyTitle: 'This backup is empty',
+  replaceEmptyMessage: 'It has no clients, sales or expenses. If you continue, an empty administration replaces your current data (a backup is made first).',
+  replaceEmptyConfirm: 'Restore empty anyway',
 };

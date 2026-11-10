@@ -9,6 +9,7 @@ import { useActions, useAppStatus, useData, useStorage } from '../../state/store
 import type { BackupInfo, RestoreResult, UpdateCheckResult } from '../../storage/types';
 import { Badge, Button, Card, Field, Icon, List, ListRow, PageHeader, Segmented, TextInput, Toggle, useConfirm, useToast } from '../../ui';
 import { version as pkgVersion } from '../../../package.json';
+import { replaceAllConfirmingEmpty } from '../../shell/confirmReplace';
 import { CategorySheet } from './CategorySheet';
 import './settings.css';
 
@@ -165,6 +166,7 @@ function ExcelSection() {
 
 function BackupSection() {
   const t = useT('settings');
+  const tc = useT('common');
   const actions = useActions();
   const data = useData();
   const storage = useStorage();
@@ -209,8 +211,7 @@ function BackupSection() {
     }
     if (!(await confirm({ title, message: t('restoreMessage'), confirmLabel: t('restore'), destructive: true }))) return;
     try {
-      await actions.replaceAll(r.data, { backupReason: 'pre-restore' });
-      toast.show(t('restored'), { tone: 'success' });
+      if (await replaceAllConfirmingEmpty(actions.replaceAll, confirm, tc, r.data, 'pre-restore')) toast.show(t('restored'), { tone: 'success' });
     } catch (e) {
       toast.show(t('restoreFailed', { error: errText(e) }), { tone: 'danger' });
     } finally {
@@ -403,7 +404,8 @@ function DataSection() {
     try {
       const fresh: AppData = emptyData(lang);
       fresh.settings = { ...fresh.settings, businessName: data.settings.businessName, language: lang, firstRunDone: true };
-      await actions.replaceAll(fresh, { backupReason: 'pre-replace' });
+      // Erasing is explicitly double-confirmed above.
+      await actions.replaceAll(fresh, { backupReason: 'pre-replace', allowEmpty: true });
       toast.show(t('erased'), { tone: 'success' });
     } catch (e) {
       toast.show(t('failed', { error: errText(e) }), { tone: 'danger' });

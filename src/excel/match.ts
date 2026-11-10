@@ -68,13 +68,19 @@ export function expenseFromRow(row: ImportRow, f: { categoryId: Id; supplierId?:
   return e;
 }
 
-/** Row after it was linked (status 'done'). */
-export function linkRow(row: ImportRow, collection: 'payments' | 'expenses' | 'sales', linkedId: Id): ImportRow {
-  return { ...row, status: 'done', linkedId, linkedCollection: collection };
+/** Row after it was linked (status 'done'). `created`: the linked record was made from this row. */
+export function linkRow(row: ImportRow, collection: 'payments' | 'expenses' | 'sales', linkedId: Id, created = false): ImportRow {
+  const { linkCreated: _lc, ...rest } = row;
+  return { ...rest, status: 'done', linkedId, linkedCollection: collection, ...(created ? { linkCreated: true } : {}) };
+}
+
+/** Matching a bank row (money out) to an unpaid expense means it was paid on the bank date. */
+export function markExpensePaidByRow(e: Expense, row: ImportRow): Expense {
+  return e.paidOn === null ? { ...e, paidOn: row.date } : e;
 }
 
 /** Back to 'todo' without link. */
 export function reopenRow(row: ImportRow): ImportRow {
-  const { linkedId: _l, linkedCollection: _c, ...rest } = row;
+  const { linkedId: _l, linkedCollection: _c, linkCreated: _lc, ...rest } = row;
   return { ...rest, status: 'todo' };
 }

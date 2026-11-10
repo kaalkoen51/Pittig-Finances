@@ -3,7 +3,7 @@
  *
  *   useData()      → AppData (current, immutable snapshot)
  *   useDerived()   → memoised calc results + lookup maps (see Derived)
- *   useActions()   → { upsert, upsertMany, remove, archive, updateSettings, replaceAll, isReferenced, flush }
+ *   useActions()   → { upsert, upsertMany, remove, removeWithUndo, archive, updateSettings, replaceAll, isReferenced, flush }
  *   useAppStatus() → { status: 'loading'|'ready'|'recovery', lastSavedAt, saveError, recoveryError }
  *   useStorage()   → the Storage (backups, export, info …)
  *
@@ -40,6 +40,7 @@ import type {
   DateRange,
   EntityOf,
   Id,
+  ImportRow,
   ISODate,
   PeriodSummary,
   Product,
@@ -75,6 +76,7 @@ type Action =
   | { type: 'corrupt'; error: string }
   | { type: 'upsert'; collection: CollectionName; items: { id: Id }[] }
   | { type: 'remove'; collection: CollectionName; id: Id }
+  | { type: 'restore'; collection: CollectionName; item: { id: Id }; importRows: ImportRow[]; paymentIds: Id[] }
   | { type: 'archive'; collection: ArchivableCollection; id: Id; archived: boolean }
   | { type: 'settings'; patch: Partial<Settings> }
   | { type: 'replace'; data: AppData }
@@ -132,6 +134,24 @@ function reducer(s: State, a: Action): State {
             }),
           };
         }
+      }
+      return withData(s, next);
+    }
+    case 'restore': {
+      // Undo of a remove: put the item back, re-link the import rows it had (unless they were sorted
+      // again meanwhile) and give a removed sale its payments' saleId back.
+      const list = d[a.collection] as { id: Id }[];
+      let next: AppData = { ...d, [a.collection]: list.some((x) => x.id === a.item.id) ? list : [...list, a.item] };
+      if (a.importRows.length) {
+        const saved = new Map(a.importRows.map((r) => [r.id, r]));
+        next = {
+          ...next,
+          importRows: next.importRows.map((r) => (saved.has(r.id) && r.status === 'todo' && !r.linkedId ? saved.get(r.id)! : r)),
+        };
+      }
+      if (a.paymentIds.length) {
+        const ids = new Set(a.paymentIds);
+        next = { ...next, payments: next.payments.map((p) => (ids.has(p.id) && !p.saleId ? { ...p, saleId: a.item.id } : p)) };
       }
       return withData(s, next);
     }
@@ -229,6 +249,11 @@ export interface Actions {
    * payments; removing a sale/payment/expense resets linked import rows to 'todo'.
    */
   remove(collection: CollectionName, id: Id): boolean;
+  /**
+   * remove() that returns an undo function (null when refused / not found). Undo restores the item,
+   * the import rows that were linked to it and – for a sale – the saleId on its payments.
+   */
+  removeWithUndo(collection: CollectionName, id: Id): (() => void) | null;
   /** Archive / unarchive. For 'batches' this sets `closed`. */
   archive(collection: ArchivableCollection, id: Id, archived: boolean): void;
   /** Shallow-merge into settings (`lastUsed` is merged one level deeper). */
@@ -237,12 +262,28 @@ export interface Actions {
    * Replace the whole dataset (restore backup, import backup file, load demo data).
    * Makes a backup of the current stored data first (reason default 'pre-replace'), validates
    * `data`, saves immediately and leaves recovery mode. Rejects if backup or validation fails.
+   * Pending edits are saved before the backup; autosave waits while a replace runs.
+   * Replacing non-empty (or unreadable, in recovery) data with a dataset without records rejects
+   * with EmptyReplaceError unless `allowEmpty` is set – ask the user an extra confirmation first.
    */
-  replaceAll(data: AppData, opts?: { backupReason?: BackupReason | false }): Promise<void>;
+  replaceAll(data: AppData, opts?: { backupReason?: BackupReason | false; allowEmpty?: boolean }): Promise<void>;
   /** True if something references this item (then remove() would refuse for protected collections). */
   isReferenced(collection: CollectionName, id: Id): boolean;
-  /** Write pending changes now. */
-  flush(): Promise<void>;
+  /** Write pending changes now. Resolves false when they could not be saved (see saveError). */
+  flush(): Promise<boolean>;
+}
+
+/** replaceAll() refused to put a dataset without records over existing data. */
+export class EmptyReplaceError extends Error {
+  readonly code = 'empty-replace';
+  constructor() {
+    super('Refusing to replace existing data with an empty dataset');
+    this.name = 'EmptyReplaceError';
+  }
+}
+
+export function isEmptyReplaceError(e: unknown): e is EmptyReplaceError {
+  return e instanceof EmptyReplaceError;
 }
 
 export interface AppStatus {
@@ -282,6 +323,10 @@ export function StoreProvider({ children, storage: storageProp, initialData }: S
   stateRef.current = state;
   const loadedWithContent = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Running replaceAll(); saveNow() waits for it so it never writes the old data in between. */
+  const replacing = useRef<Promise<void> | null>(null);
+  /** Message of the last failed save (state.saveError lags one render behind). */
+  const lastSaveError = useRef<string | undefined>(undefined);
 
   // ---- load ----
   useEffect(() => {
@@ -310,16 +355,29 @@ export function StoreProvider({ children, storage: storageProp, initialData }: S
   }, [storage, initialData]);
 
   // ---- save ----
-  const saveNow = useCallback(async () => {
+  /** Save pending changes (no replace guard). true = everything is on disk. */
+  const saveInternal = useCallback(async (): Promise<boolean> => {
+    const failed = (e: unknown) => {
+      const error = e instanceof Error ? e.message : String(e);
+      lastSaveError.current = error;
+      dispatch({ type: 'saveError', error });
+      return false;
+    };
     if (timer.current) {
       clearTimeout(timer.current);
       timer.current = null;
     }
     const s = stateRef.current;
-    if (s.status !== 'ready' || s.rev === s.savedRev) return storage.flush();
+    if (s.status !== 'ready' || s.rev === s.savedRev) {
+      try {
+        await storage.flush();
+        return true;
+      } catch (e) {
+        return failed(e);
+      }
+    }
     if (loadedWithContent.current && isCompletelyEmpty(s.data)) {
-      dispatch({ type: 'saveError', error: 'Refusing to overwrite stored data with an empty dataset' });
-      return;
+      return failed(new Error('Refusing to overwrite stored data with an empty dataset'));
     }
     const rev = s.rev;
     try {
@@ -327,10 +385,17 @@ export function StoreProvider({ children, storage: storageProp, initialData }: S
       await storage.flush();
       if (!isCompletelyEmpty(s.data)) loadedWithContent.current = true;
       dispatch({ type: 'saved', rev, at: new Date().toISOString() });
+      lastSaveError.current = undefined;
+      return true;
     } catch (e) {
-      dispatch({ type: 'saveError', error: e instanceof Error ? e.message : String(e) });
+      return failed(e);
     }
   }, [storage]);
+
+  const saveNow = useCallback(async (): Promise<boolean> => {
+    while (replacing.current) await replacing.current.catch(() => undefined);
+    return saveInternal();
+  }, [saveInternal]);
 
   useEffect(() => {
     if (state.status !== 'ready' || state.rev === state.savedRev) return;
@@ -342,7 +407,10 @@ export function StoreProvider({ children, storage: storageProp, initialData }: S
   }, [state.rev, state.savedRev, state.status, saveNow]);
 
   useEffect(() => {
-    const off = storage.onBeforeClose(() => saveNow());
+    // Rejecting tells the Electron shell the data is NOT saved, so it asks before closing.
+    const off = storage.onBeforeClose(async () => {
+      if (!(await saveNow())) throw new Error(lastSaveError.current ?? 'Not saved');
+    });
     const onHide = () => {
       if (document.visibilityState === 'hidden') void saveNow();
     };
@@ -369,6 +437,16 @@ export function StoreProvider({ children, storage: storageProp, initialData }: S
         dispatch({ type: 'remove', collection, id });
         return true;
       },
+      removeWithUndo(collection, id) {
+        const d = stateRef.current.data;
+        const item = (d[collection] as { id: Id }[]).find((x) => x.id === id);
+        if (!item) return null;
+        if (PROTECTED_COLLECTIONS.includes(collection) && isReferencedCalc(d, collection, id)) return null;
+        const importRows = d.importRows.filter((r) => r.linkedId === id);
+        const paymentIds = collection === 'sales' ? d.payments.filter((p) => p.saleId === id).map((p) => p.id) : [];
+        dispatch({ type: 'remove', collection, id });
+        return () => dispatch({ type: 'restore', collection, item, importRows, paymentIds });
+      },
       archive(collection, id, archived) {
         dispatch({ type: 'archive', collection, id, archived });
       },
@@ -378,23 +456,44 @@ export function StoreProvider({ children, storage: storageProp, initialData }: S
       async replaceAll(data, opts = {}) {
         const v = validate(data);
         if (!v.ok) throw new Error(`Invalid data: ${v.error}`);
+        const cur = stateRef.current;
+        if (!opts.allowEmpty && !hasUserContent(data) && (cur.status !== 'ready' || hasUserContent(cur.data) || loadedWithContent.current)) {
+          throw new EmptyReplaceError();
+        }
         const reason = opts.backupReason ?? 'pre-replace';
-        if (reason !== false) await storage.backupNow(reason);
-        await storage.flush();
-        if (timer.current) clearTimeout(timer.current);
-        await storage.save(data);
-        await storage.flush();
-        loadedWithContent.current = !isCompletelyEmpty(data);
-        dispatch({ type: 'replace', data });
-        // Mark the replaced revision as saved.
-        dispatch({ type: 'saved', rev: stateRef.current.rev + 1, at: new Date().toISOString() });
+        while (replacing.current) await replacing.current.catch(() => undefined);
+        const run = (async () => {
+          // Save pending edits first, so the backup below contains them.
+          await saveInternal();
+          if (reason !== false) await storage.backupNow(reason);
+          await storage.flush();
+          if (timer.current) clearTimeout(timer.current);
+          timer.current = null;
+          await storage.save(data);
+          await storage.flush();
+          loadedWithContent.current = !isCompletelyEmpty(data);
+          const cur = stateRef.current;
+          const at = new Date().toISOString();
+          dispatch({ type: 'replace', data });
+          // Mark the replaced revision as saved.
+          dispatch({ type: 'saved', rev: cur.rev + 1, at });
+          // Mirror the reducer now: a saveNow() waiting on this replace runs before the next render
+          // and must not see (and write back) the old data.
+          stateRef.current = { ...cur, status: 'ready', data, rev: cur.rev + 1, savedRev: cur.rev + 1, lastSavedAt: at, saveError: undefined, recoveryError: undefined };
+        })();
+        replacing.current = run;
+        try {
+          await run;
+        } finally {
+          if (replacing.current === run) replacing.current = null;
+        }
       },
       isReferenced(collection, id) {
         return isReferencedCalc(stateRef.current.data, collection, id);
       },
       flush: saveNow,
     }),
-    [storage, saveNow],
+    [storage, saveNow, saveInternal],
   );
 
   const status = useMemo<AppStatus>(

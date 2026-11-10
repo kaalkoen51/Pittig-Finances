@@ -2,9 +2,9 @@
  * Pure mapping between the sale form state and Sale / Payment records. No React.
  *
  * "Paid already" rule (PLAN revisions): a sale with a client and the toggle on gets a Payment
- * {clientId, saleId, amount: total, date: sale.date}. When editing, the toggle controls that one
- * "auto" payment: a single linked payment that covers the whole old total. Other linked payments
- * (partial payments recorded later) are left alone and the toggle is not shown for them.
+ * {clientId, saleId, amount: total, date: sale.date, auto: true}. When editing, the toggle controls
+ * only that explicitly marked "auto" payment. Real payments (bank import, recorded payments) are
+ * never rewritten or deleted by editing the sale, even when one equals the total.
  */
 import { lineTotal, newestOpenBatch, saleTotal } from '../../domain/calc';
 import { newId } from '../../domain/ids';
@@ -77,11 +77,19 @@ export function formTotal(f: SaleFormState): Cents {
   return t;
 }
 
-/** Payments that the toggle controls for `sale` (the auto "paid already" payment), if any. */
+/**
+ * The payment that the "Paid already" toggle controls for `sale`, if any: the linked payment marked
+ * `auto: true`. Legacy data (before the flag existed): a single linked payment without `auto`,
+ * method and notes, dated on the sale date for exactly the total – what the old toggle wrote. Payments
+ * from the payment form or a bank import always have a method, so they never qualify.
+ */
 export function autoPaymentFor(sale: Sale, linked: Payment[]): Payment | undefined {
+  const marked = linked.find((p) => p.auto === true && p.clientId === sale.clientId);
+  if (marked) return marked;
   if (linked.length !== 1) return undefined;
   const p = linked[0]!;
-  return p.amount === saleTotal(sale) && p.clientId === sale.clientId ? p : undefined;
+  const legacy = p.auto === undefined && p.method === undefined && p.notes === undefined && p.date === sale.date;
+  return legacy && p.amount === saleTotal(sale) && p.clientId === sale.clientId ? p : undefined;
 }
 
 export interface NewSaleDefaults {
@@ -191,6 +199,7 @@ export function buildSaleSave(
       clientId: clientId!,
       saleId: sale.id,
       amount: total,
+      auto: true,
     });
   } else if (auto) {
     removePaymentIds.push(auto.id);
@@ -221,7 +230,7 @@ export function buildSaleSave(
 export function canTogglePaid(existing: Sale | undefined, linked: Payment[], alreadyPaid: Cents = 0): boolean {
   if (!existing) return true;
   if (linked.length === 0) return alreadyPaid <= 0;
-  return !!autoPaymentFor(existing, linked);
+  return linked.length === 1 && !!autoPaymentFor(existing, linked);
 }
 
 /** Short "40× Sambal, 12× Habanero" summary. */
